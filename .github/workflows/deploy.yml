@@ -1,0 +1,91 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [lib-updated]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout docs repo
+        uses: actions/checkout@v4
+
+      - name: Checkout lib repo
+        uses: actions/checkout@v4
+        with:
+          repository: nchursin/verity-bdd
+          path: lib-source
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install gomarkdoc
+        run: go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
+
+      - name: Generate API reference
+        run: |
+          mkdir -p src/content/docs/en/api
+          cd lib-source
+
+          for pkg in verity_abilities/api verity_abilities/take_notes verity_expectations verity_expectations/ensure verity_answerable verity_reporting/console_reporter verity_reporting/allure_reporter; do
+            if [ -d "$pkg" ]; then
+              name=$(echo "$pkg" | tr '/' '-')
+              gomarkdoc "./$pkg" --output "../src/content/docs/en/api/${name}.md"
+              # Prepend frontmatter (gomarkdoc outputs plain markdown)
+              tmp=$(mktemp)
+              echo "---" > "$tmp"
+              echo "title: $pkg" >> "$tmp"
+              echo "description: API reference for $pkg" >> "$tmp"
+              echo "---" >> "$tmp"
+              cat "../src/content/docs/en/api/${name}.md" >> "$tmp"
+              mv "$tmp" "../src/content/docs/en/api/${name}.md"
+            fi
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build Astro site
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

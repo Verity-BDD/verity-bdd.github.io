@@ -1,0 +1,40 @@
+---
+title: Verity BDD
+description: Screenplay Pattern testing framework for Go
+template: splash
+hero:
+  tagline: Write expressive, maintainable acceptance tests using the Screenplay Pattern
+  image:
+    file: ../../../assets/verity-logo.svg
+  actions:
+    - text: Get Started
+      link: /verity-bdd-site/en/guides/getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/nchursin/verity-bdd
+      icon: external
+      variant: minimal
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+## What is Verity BDD?
+
+Verity BDD is a Go implementation of the **Screenplay Pattern** for acceptance testing,
+focused on API testing. It helps you write tests that read like specifications.
+
+<CardGrid stagger>
+  <Card title="Screenplay Pattern" icon="pencil">
+    Actors, Abilities, Activities, and Questions — the full Screenplay vocabulary
+    for expressive, readable tests.
+  </Card>
+  <Card title="API Testing" icon="rocket">
+    Built-in HTTP API ability for testing REST APIs with a clean, composable interface.
+  </Card>
+  <Card title="Type-safe Questions" icon="approve-check">
+    Generic `Question[T]` interface ensures compile-time correctness for assertions.
+  </Card>
+  <Card title="Reporting" icon="information">
+    Console and Allure reporting out of the box for CI and local runs.
+  </Card>
+</CardGrid>
