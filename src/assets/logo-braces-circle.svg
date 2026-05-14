@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" data-om-id="f5f31310:17">
+  <circle cx="128" cy="128" r="128" fill="#0E1A30" data-om-id="f5f31310:18"></circle>
+  <g fill="none" stroke="#FFF7E5" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" data-om-id="f5f31310:19">
+    <path d="M 92 58 Q 64 58 64 90 L 64 116 Q 64 128 48 128 Q 64 128 64 140 L 64 166 Q 64 198 92 198" data-om-id="f5f31310:20"></path>
+    <path d="M 164 58 Q 192 58 192 90 L 192 116 Q 192 128 208 128 Q 192 128 192 140 L 192 166 Q 192 198 164 198" data-om-id="f5f31310:21"></path>
+    <path d="M 96 132 L 118 158 L 162 100" data-om-id="f5f31310:22"></path>
+  </g>
+  <circle cx="162" cy="100" r="11" fill="#E2A845" data-om-id="f5f31310:23"></circle>
+</svg>

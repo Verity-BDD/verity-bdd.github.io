@@ -5,8 +5,6 @@ sidebar:
   order: 1
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 <Aside type="caution">
   This project is still at version 0.x.x. No backwards compatibility is guaranteed for any changes. The plan is to go v1.x.x in Summer 2026.
 </Aside>
