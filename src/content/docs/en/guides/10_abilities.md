@@ -13,6 +13,7 @@ You'll end up with a fully functional ability including typed interactions and q
 
 ## What you're building
 
+Actor has a method `WhoCan` which gives the actor ability to interact with a system. For example:
 ```go
 // Give an actor the ability to manage files
 actor := test.ActorCalled("Auditor").WhoCan(ManageFilesIn(t.TempDir()))
@@ -24,6 +25,8 @@ actor.AttemptsTo(
     ensure.That(FileExists("report.txt"), expectations.Equals(true)),
 )
 ```
+
+In this case `ManageFilesIn(t.TempDir())` returns a specific implementation of `verity.Ability`. Let's dive into what that is.
 
 ## Step 1 — Define the interface
 
