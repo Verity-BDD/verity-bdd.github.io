@@ -17,15 +17,6 @@ Focusing on actors and their goals and incorporating your domain language into t
 improves **team collaboration** and **alignment**, enabling technical and business stakeholders to understand
 and readily contribute to the test automation process.
 
-<!-- Verity BDD implementation of the Screenplay Pattern enables developers to easily introduce this design approach -->
-<!-- even into [existing test automation projects](/handbook/#modernise-existing-projects). -->
-<!-- Moreover, the framework -->
-<!-- provides [integration libraries](/handbook/architecture/#serenityjs-screenplay-pattern-apis) to -->
-<!-- facilitate various test automation types, including end-to-end, component, mobile and API testing, -->
-<!-- making it a versatile choice for different testing needs. -->
-<!-- Verity BDD also provides [reporting tools](/handbook/reporting/) and [code reuse patterns](/handbook/design/) that facilitate -->
-<!-- sharing test code across projects and teams and reducing maintenance costs. -->
-
 ### The design principle
 
 The design principle behind the Screenplay Pattern is simple but might forever change the way you look at test automation:
@@ -65,18 +56,13 @@ The five building blocks of the Screenplay Pattern are:
 - **[Tasks](#tasks)**, used to model **sequences of activities** as meaningful steps of a business workflow in your domain
 - **[Questions](#questions)**, used to **retrieve information** from the system under test and the test execution environment
 
-<Figure
-    caption='Five elements of the Screenplay Pattern'
-    img={require('@site/static/images/design/serenity-js-screenplay-pattern.png')}
-/>
-
 ### Screenplay Pattern with Verity BDD
 
 The best way to illustrate the Screenplay Pattern is through a practical example, so assume for a moment that we're writing a test scenario
 for an online shop. The shop has a REST API that lets us configure its product catalogue with some test data,
 and a web storefront that lets customers find the products they need and make a purchase.
 
-We'll create a test scenario that uses two actors: one to set up the test data, and one to interact with the web UI.
+We'll create a test scenario that uses two actors: one to set up the test data via the REST API, and one to verify the results.
 
 :::tip[Verity BDD Project Templates]
 To follow along with the coding, get one of the [**Verity BDD Project Templates**](/handbook/project-templates/) as they come with everything you need to get started with Verity BDD.
@@ -84,7 +70,7 @@ To follow along with the coding, get one of the [**Verity BDD Project Templates*
 
 #### Actors
 
-A test scenario following the Screenplay Pattern has one or multiple [**actors**](/api/core/class/Actor)
+A test scenario following the Screenplay Pattern has one or multiple **actors**
 representing people and external systems interacting with the system under test and playing specific roles.
 
 :::tip[The role of an actor]
@@ -101,124 +87,129 @@ and publish an article. If it did, you would not be able to test if your system 
 
 Our example scenario could have two actors, who we'll call:
 - Apisitt, responsible for setting up test data using the REST API
-- Wendy, representing a customer interacting with the web UI
+- Wendy, verifying the results via the REST API
 
 ##### Instantiating and retrieving actors
 
-With Verity BDD, you can instantiate new actors or retrieve the ones you've already referenced in the given scenario using the function
-[`actorCalled`](/api/core/function/actorCalled) and providing the name of the actor:
+With Verity BDD, you instantiate actors via the `VerityTest` context created at the start of each test:
 
-```ts title="spec/screenplay-pattern.ts"
-import { actorCalled } from '@serenity-js/core'
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
 
-actorCalled('Apisitt')  // returns: Actor(name='Apisitt')
-actorCalled('Wendy')    // returns: Actor(name='Wendy')
+    verity "github.com/nchursin/verity-bdd"
+)
+
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
+
+    test.ActorCalled("Apisitt") // Actor{name: "Apisitt"}
+    test.ActorCalled("Wendy")   // Actor{name: "Wendy"}
+}
 ```
 
 Note that **every Verity BDD actor is uniquely identified by their name**.
-The first time you call `actorCalled('Wendy')`, Verity BDD instantiates a new [`Actor`](/api/core/class/Actor/)
+The first time you call `test.ActorCalled("Wendy")`, Verity BDD instantiates a new `Actor`
 and stores a reference to it internally under the name you gave it.
-This way, whenever you call `actorCalled('Wendy')` **within the same scenario** again, you'll get the same actor instance back.
+This way, whenever you call `test.ActorCalled("Wendy")` **within the same test** again, you'll get the same actor instance back:
 
-```ts title="spec/screenplay-pattern.ts"
-import assert from 'node:assert/strict'
-import { actorCalled } from '@serenity-js/core'
+```go title="online_shop_test.go"
+func TestActorIdentity(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
 
-const wendy1 = actorCalled('Wendy') // first invocation of actorCalled
-const wendy2 = actorCalled('Wendy') // second invocation of actorCalled
+    wendy1 := test.ActorCalled("Wendy") // first call — actor created
+    wendy2 := test.ActorCalled("Wendy") // second call — same instance returned
 
-assert.equal(wendy1, wendy2)        // wendy1 === wendy 2
+    // wendy1 and wendy2 are the same Actor instance
+}
 ```
 
 To avoid typos and repetition when instantiating and retrieving actors in your test scenarios,
-you might want to consider using [string enums](https://www.typescriptlang.org/docs/handbook/enums.html#string-enums)
-or constants to store actor names:
+you might want to consider using constants to store actor names:
 
-```ts title="spec/screenplay-pattern.ts"
-import { actorCalled } from '@serenity-js/core'
+```go title="online_shop_test.go"
+const (
+    actorApisitt = "Apisitt, the test data manager"
+    actorWendy   = "Wendy, the customer"
+)
 
-enum ActorNames {
-    Apisitt = 'Apisitt, the test data manager',
-    Wendy   = 'Wendy, the customer',
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
+
+    test.ActorCalled(actorApisitt) // Actor{name: "Apisitt, the test data manager"}
+    test.ActorCalled(actorWendy)   // Actor{name: "Wendy, the customer"}
 }
-
-actorCalled(ActorNames.Apisitt)  // returns: Actor(name='Apisitt')
-actorCalled(ActorNames.Wendy)    // returns: Actor(name='Wendy')
-````
-
-##### Using actors with test runners
-
-While you could use Verity BDD and the [`actorCalled`](/api/core/function/actorCalled) function as part of any regular Node.js program,
-you'll typically use it with a test runner such as [Playwright Test](/handbook/test-runners/playwright-test),
-[Cucumber.js](/handbook/test-runners/cucumber), [Mocha](/handbook/test-runners/mocha), or [Jasmine](/handbook/test-runners/jasmine).
-
-To help you ensure no state leakage between test scenarios, [Verity BDD test runner adapters](/handbook/test-runners)
-will also [automatically dismiss](/api/core/class/Actor/#dismiss) any actors instantiated within the scope of a test scenario and free up the resources
-they were using when the scenario finishes.
-
-Note that since different test runners have different APIs, the way you retrieve actors might vary slightly depending on the test runner you use:
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
-    actorCalled('Apisitt')  // returns: Actor(name="Apisitt")
-    actorCalled('Wendy')    // returns: Actor(name="Wendy")
-  })
-})
 ```
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Mocha"}
-import { actorCalled } from '@serenity-js/core'
-import { describe, it } from 'mocha'
+##### Using actors in Go tests
 
-describe('Online shop', () => {
+While you could use Verity BDD and `test.ActorCalled()` as part of any regular Go program,
+you'll typically use it with Go's standard `testing` package:
 
-  it('should allow customers to find products of interest', async () => {
-    actorCalled('Apisitt')  // returns: Actor(name="Apisitt")
-    actorCalled('Wendy')    // returns: Actor(name="Wendy")
-  })
-})
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
+
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+)
+
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
+
+    test.ActorCalled("Apisitt") // Actor{name: "Apisitt"}
+    test.ActorCalled("Wendy")   // Actor{name: "Wendy"}
+}
 ```
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Jasmine"}
-import 'jasmine'
-import { actorCalled } from '@serenity-js/core'
+`VerityTest` automatically cleans up all actors when the test finishes — no manual teardown needed.
 
-describe('Online shop', () => {
+##### Using default abilities
 
-  it('should allow customers to find products of interest', async () => {
-    actorCalled('Apisitt')  // returns: Actor(name="Apisitt")
-    actorCalled('Wendy')    // returns: Actor(name="Wendy")
-  })
-})
+Since giving every actor the same base ability (such as the API base URL) is a common need,
+Verity BDD lets you configure **default abilities** via `Scene.DefaultAbilities`.
+Every actor created in the test will receive these abilities automatically:
+
+```go title="online_shop_test.go"
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(t, verity.Scene{
+        DefaultAbilities: []verity.DefaultAbilityFactory{
+            func(_ string) verity.Ability {
+                return api.CallAnApiAt("https://api.example.org/")
+            },
+        },
+    })
+
+    apisitt := test.ActorCalled("Apisitt") // already has CallAnApiAt ability
+    wendy := test.ActorCalled("Wendy")     // already has CallAnApiAt ability
+    _ = apisitt
+    _ = wendy
+}
 ```
 
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
+To retrieve an actor's ability, use `verity.AbilityOf[T]`:
 
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-    actorCalled('Apisitt') // returns: Actor(name="Apisitt")
-    // ...
-})
+```go title="online_shop_test.go"
+ability, err := verity.AbilityOf[*api.CallAnAPI](apisitt)
+if err != nil {
+    t.Fatalf("actor lacks API ability: %v", err)
+}
+_ = ability
 ```
+
+Learn more about:
+- [Abilities](#abilities)
+- [API testing](/guides/1_getting-started/)
 
 #### Abilities
 
-Actors have [**abilities**](/api/core/class/Ability) that enable them to interact with the various interfaces
+Actors have **abilities** that enable them to interact with the various interfaces
 of the system under test and the test execution environment.
 
 From the technical perspective, **abilities** act as **wrappers** around any **integration libraries** required
-to communicate with the external interfaces of system under test,
-such as [web browser drivers](/api/web/class/BrowseTheWeb/) or an [HTTP client](/api/rest/class/CallAnApi/),
-or [hold state](/api/core/class/TakeNotes/) to allow actors to remember retrieved information.
-Abilities also enable [portability](/handbook/design/portable-test-code)
-of your test code across various lower-level integration libraries as they expose a standardised API.
+to communicate with the external interfaces of the system under test.
 
 :::note[Did you know?]
 The word "screen" in "screenplay" has nothing to do with the _computer screen_.
@@ -227,729 +218,248 @@ external interface of your system. In fact, Verity BDD implementation of the Scr
 break free from UI-only-based testing!
 :::
 
-To allow Apisitt to interact with a [REST API](/api/rest), we'll give him the ability to [`CallAnApi`](/api/rest/class/CallAnApi),
-wrapping an instance of an [Axios HTTP client](https://axios-http.com/docs/instance):
+To allow Apisitt to interact with a REST API, we give him the ability to `CallAnApiAt`:
 
-```ts title="spec/screenplay-pattern.ts"
-import axios from 'axios'
-import { actorCalled } from '@serenity-js/core'
-import { CallAnApi } from '@serenity-js/rest'
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
 
-const axiosInstance = axios.create({ baseURL 'https://api.example.org/' })
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+)
 
-const actor = actorCalled('Apisitt')
-    .whoCan(CallAnApi.using(axiosInstance))
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
 
-// ...
-```
+    apisitt := test.ActorCalled("Apisitt").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-At the same time, to allow Wendy to interact with the [web UI](/api/web) we'll give her an instance of a [Playwright browser](https://playwright.dev/docs/api/class-browser), although she could use any other [popular web browser driver supported by Verity BDD](/handbook/web-testing/):
+    wendy := test.ActorCalled("Wendy").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-```ts title="spec/screenplay-pattern.ts"
-import { actorCalled } from '@serenity-js/core'
-import { BrowseTheWebWithPlaywright } from '@serenity-js/playwright'
-
-import { chromium } from 'playwright'
-
-async function example() {
-    let browser
-
-    try {
-        browser = await chromium.launch({ headless: false })
-
-        const actor = actorCalled('Wendy')
-            .whoCan(BrowseTheWebWithPlaywright.using(browser))
-
-        // ...
-    }
-    finally {
-        if (browser) {
-            await browser.close()
-        }
-    }
+    _ = apisitt
+    _ = wendy
 }
 ```
-
-Even though the [`actorCalled`](/api/core/function/actorCalled) function makes instantiating and retrieving actors straightforward, setting up browser drivers, HTTP clients, and similar libraries can be more involved.
-Thankfully, Verity BDD has a mechanism to help you with that, as you'll see in the next section.
-
-##### Using default test runner configuration
-
-Since configuring integration libraries like Axios or Playwright is a common task in test automation,
-Verity BDD test runner adapters use your test runner's configuration to set up the abilities for you.
-And so, Verity BDD adapters for the following test runners will automatically give every actor you retrieve via [`actorCalled`](/api/core/function/actorCalled) the below abilities so that you don't have to configure them yourself:
-- [Playwright Test](/handbook/test-runners/playwright-test):
-    - [`BrowseTheWebWithPlaywright`](/api/playwright/class/BrowseTheWebWithPlaywright/),
-    - [`CallAnApi`](/api/rest/class/CallAnApi) at [`baseURL`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) configured in the [Playwright Test config file](https://playwright.dev/docs/test-configuration),
-    - [`TakeNotes`](/api/core/class/TakeNotes)
-- [WebdriverIO](/handbook/test-runners/webdriverio/) (with [Cucumber](/handbook/test-runners/cucumber), [Jasmine](/handbook/test-runners/jasmine), or [Mocha](/handbook/test-runners/mocha)):
-    - [`BrowseTheWebWithWebdriverIO`](/api/webdriverio/class/BrowseTheWebWithWebdriverIO/),
-    - [`CallAnApi`](/api/rest/class/CallAnApi) at [`baseUrl`](/api/webdriverio/#WebdriverIOConfig) configured in the [WebdriverIO config file](https://webdriver.io/docs/configurationfile/),
-    - [`TakeNotes`](/api/core/class/TakeNotes)
-- [Protractor](/handbook/test-runners/protractor/) (with [Cucumber](/handbook/test-runners/cucumber), [Jasmine](/handbook/test-runners/jasmine), or [Mocha](/handbook/test-runners/mocha)):
-    - [`BrowseTheWebWithProtractor`](/api/protractor/class/BrowseTheWebWithProtractor/),
-    - [`CallAnApi`](/api/rest/class/CallAnApi) at [`baseUrl`](/api/protractor-adapter/interface/Config/#baseUrl) configured in the [Protractor config file](https://github.com/angular/protractor/blob/master/lib/config.ts),
-    - [`TakeNotes`](/api/core/class/TakeNotes)
-
-To retrieve actor's ability to do something, you can use the [`Actor.abilityTo`](/api/core/class/Actor/#whoCan) method,
-which returns an implementation of the ability if the actor has it, or throws a [`ConfigurationError`](/api/core/class/ConfigurationError/) if they don't.
-While you wouldn't retrieve the abilities directly in your test scenarios, you'd use this mechanism in your custom [interactions](/handbook/design/screenplay-pattern/#interactions) and [questions](/handbook/design/screenplay-pattern/#questions).
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-import { BrowseTheWeb } from '@serenity-js/web'
-import { CallAnApi } from '@serenity-js/rest'
-import { TakeNotes } from '@serenity-js/core'
-import assert from 'node:assert/strict'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
-    assert.ok(actorCalled('Wendy').abilityTo(BrowseTheWeb))
-    assert.ok(actorCalled('Wendy').abilityTo(CallAnApi))
-    assert.ok(actorCalled('Wendy').abilityTo(TakeNotes))
-
-    // ...
-  })
-})
-```
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { BrowseTheWeb } from '@serenity-js/web'
-import { CallAnApi } from '@serenity-js/rest'
-import { actorCalled, TakeNotes } from '@serenity-js/core'
-import assert from 'node:assert/strict'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async () => {
-    assert.ok(actorCalled('Wendy').abilityTo(BrowseTheWeb))
-    assert.ok(actorCalled('Wendy').abilityTo(CallAnApi))
-    assert.ok(actorCalled('Wendy').abilityTo(TakeNotes))
-
-    // ...
-  })
-})
-```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { BrowseTheWeb } from '@serenity-js/web'
-import { CallAnApi } from '@serenity-js/rest'
-import { actorCalled, TakeNotes } from '@serenity-js/core'
-import assert from 'node:assert/strict'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-    assert.ok(actorCalled('Wendy').abilityTo(BrowseTheWeb))
-    assert.ok(actorCalled('Wendy').abilityTo(CallAnApi))
-    assert.ok(actorCalled('Wendy').abilityTo(TakeNotes))
-    // ...
-})
-```
-
-As this simple test scenario shows, Verity BDD provides your actors with the default abilities to `BrowseTheWeb`, `CallAnApi` and `TakeNotes`
-**without you having to modify any configuration** and **without writing any additional code**.
-All you need to do is to create/retrieve the `Actor` by calling [`actorCalled(<name>)`](/api/core/function/actorCalled/).
-
-:::tip[Portable test code]
-Playwright Test, WebdriverIO and Protractor test runners vary dramatically and have completely different and incompatible APIs.
-This would normally tie your test suite to a specific integration tool and prevent you from being able to run test scenarios written for one test runner using another.
-
-To solve this problem and allow your test suite to be agnostic of the underlying integration tool,
-Verity BDD test runner adapters configure the default cast of actors with an ability to [`BrowseTheWeb`](/api/web/class/BrowseTheWeb/)
-specific to the given test runner, so: [`BrowseTheWebWithPlaywright`](/api/playwright/class/BrowseTheWebWithPlaywright/),
-[`BrowseTheWebWithWebdriverIO`](/api/webdriverio/class/BrowseTheWebWithWebdriverIO/), or [`BrowseTheWebWithProtractor`](/api/protractor/class/BrowseTheWebWithProtractor/),
-but exposing a consistent  API across all test runners.
-
-This design allows you to write test scenarios that interact with the web UI without having to worry about the underlying integration tool and makes your test code [portable across different test runners](/handbook/design/portable-test-code/).
-:::
-
-##### Using a custom cast of actors
-
-Following the system metaphor of a stage performance, Verity BDD uses a [cast of actors](/api/core/class/Cast) to configure the default abilities the actors receive upon instantiation.
-
-If you'd like to modify those defaults, or if you use Verity BDD with [Cucumber](/handbook/test-runners/cucumber), [Jasmine](/handbook/test-runners/jasmine), or [Mocha](/handbook/test-runners/mocha) without a [WebdriverIO](/handbook/test-runners/webdriverio/) or [Protractor](/handbook/test-runners/protractor/) wrapper
-that set up the defaults automatically, you can instruct Verity BDD to use a custom cast.
-
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { BrowseTheWebWithPlaywright } from '@serenity-js/playwright'
-import { describe, it, test } from '@serenity-js/playwright-test'
-import { Cast, TakeNotes, Notepad } from '@serenity-js/core'
-
-test.use({
-    // Replace the entire default cast:
-    actors: async ({ contextOptions, page }, use): Promise<void> => {
-        const cast = Cast.where(actor => actor.whoCan(
-            BrowseTheWebWithPlaywright.usingPage(page, contextOptions),
-            TakeNotes.usingAnEmptyNotepad(),
-            // ... other abilities
-        ))
-
-        await use(cast)
-    },
-
-    // Alternatively, wrap actorCalled to give actors additional abilities
-    // or override the default ones:
-    actorCalled: async ({ actorCalled }, use) => {
-        await use((name: string) => {
-            return actorCalled(name).whoCan(
-                TakeNotes.using(Notepad.with({
-                  firstName: name,
-                  lastName: 'Tester',
-                }))
-                // ... other abilities
-            )
-        })
-    },
-})
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
-    actorCalled('Apisitt')  // returns: Actor(name="Apisitt")
-    actorCalled('Wendy')    // returns: Actor(name="Wendy")
-  })
-})
-```
-
-```ts title="wdio.conf.ts" tab={"label":"WebdriverIO"}
-import { BrowseTheWebWithWebdriverIO, WebdriverIOConfig } from '@serenity-js/webdriverio'
-import { Cast, TakeNotes } from '@serenity-js/core'
-import { browser } from '@wdio/globals'
-
-export const config: WebdriverIOConfig = {
-
-    framework: '@serenity-js/webdriverio',
-
-    serenity: {
-        // Replace the entire default cast:
-        actors: Cast.where(actor => actor.whoCan(
-            BrowseTheWebWithWebdriverIO.using(browser),
-            TakeNotes.usingAnEmptyNotepad(),
-            // ... other abilities
-        )),
-
-        // Configure Verity BDD to use an appropriate test runner adapter
-        runner: 'cucumber', // or: 'mocha', 'jasmine'
-
-        // ... other Verity BDD configuration
-    },
-}
-```
-
-```ts title="protractor.conf.js" tab={"label":"Protractor"}
-const { BrowseTheWebWithProtractor } = require('@serenity-js/protractor')
-const { Cast, TakeNotes } = require( '@serenity-js/core')
-const protractor = require('protractor')
-
-exports.config = {
-
-    framework:      'custom',
-    frameworkPath:  require.resolve('@serenity-js/protractor/adapter'),
-
-    serenity: {
-
-        actors: Cast.where(actor => actor.whoCan(
-            BrowseTheWebWithProtractor.using(protractor.browser),
-            TakeNotes.usingAnEmptyNotepad(),
-            // ... other abilities
-        )),
-
-        // Configure Verity BDD to use an appropriate test runner adapter
-        runner: 'jasmine', // or 'mocha', 'cucumber'
-
-        // ... other Verity BDD configuration
-    },
-}
-```
-
-If you're using [Cucumber](/handbook/test-runners/cucumber), [Jasmine](/handbook/test-runners/jasmine), or [Mocha](/handbook/test-runners/mocha) without a [WebdriverIO](/handbook/test-runners/webdriverio/) or [Protractor](/handbook/test-runners/protractor/) wrapper,
-you can configure the default cast of actors using the [`configure`](/api/core/function/configure/) and [`engage`](/api/core/function/engage/) functions, as per the test runner adapter configuration.
 
 Learn more about:
 - [Abilities](/api/core/class/Ability)
-- [Web testing](/handbook/web-testing/)
-- [Api testing](/handbook/api-testing/)
-- [Mobile testing](/handbook/mobile-testing/)
+- [API testing](/guides/1_getting-started/)
 
 #### Interactions
 
-Abilities enable actors to perform [**interactions**](/api/core/class/Interaction) with the system under test.
+Abilities enable actors to perform **interactions** with the system under test.
 **Interactions** are **command objects** that instruct an actor how to use their abilities to perform the given activity.
-Most interactions you will need are already provided by [Verity BDD modules](/handbook/architecture),
-and you can easily [create new ones](/api/core/class/Interaction) if you'd like to.
+Most interactions you will need are already provided by Verity BDD,
+and you can easily create new ones if you'd like to.
 
-To instruct an actor to attempt to perform a sequence of interactions, use the [`Actor.attemptsTo`](/api/core/class/Actor#attemptsTo) method.
-Note that this method returns a `Promise` that resolves when the actor has completed the interactions, or rejects if any of the interactions fail,
-so you can use it with `await` in an `async` function.
+To instruct an actor to attempt to perform a sequence of interactions, use the `AttemptsTo` method.
 
-Here, we instruct Apisitt to use the interaction to [`Send.a(HTTPRequest)`](/api/rest/class/Send) from the [Verity BDD REST](/api/rest) module
-to set up some test data for our test scenario:
+Here, we instruct Apisitt to use `api.SendPostRequest` to set up some test data for our test scenario:
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-import { Send, PostRequest } from '@serenity-js/rest'
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
 
-describe('Online shop', () => {
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+)
 
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
+type Product struct {
+    Name  string `json:"name"`
+    Price string `json:"price"`
+}
 
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: 'Apples', price: '£2.50' }     //   that instruct actors how to use their abilities
-        ])),
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
+
+    apisitt := test.ActorCalled("Apisitt").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
+
+    apisitt.AttemptsTo(                        // actor attempts to perform interactions
+        api.SendPostRequest("/products").With(  // interactions are command objects
+            []Product{                         // that instruct actors how to use abilities
+                {Name: "Apples", Price: "£2.50"},
+            },
+        ),
     )
-
-    // ...
-  })
-})
+}
 ```
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { actorCalled } from '@serenity-js/core'
-import { Send, PostRequest } from '@serenity-js/rest'
+In the same manner, Wendy can use `api.SendGetRequest` to verify the catalogue:
 
-describe('Online shop', () => {
+```go title="online_shop_test.go"
+wendy := test.ActorCalled("Wendy").
+    WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-  it('should allow customers to find products of interest', async () => {
+wendy.AttemptsTo(
+    api.SendGetRequest("/products"), // consistent API, same as any other interaction
+)
+```
 
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: 'Apples', price: '£2.50' }     //   that instruct actors how to use their abilities
-        ])),
+If you wanted to implement a custom interaction yourself, you can use `verity.Do`:
+
+```go title="interactions.go"
+import (
+    "context"
+    "fmt"
+
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+)
+
+func GetProducts() verity.Activity {
+    return verity.Do(
+        "#actor retrieves the product catalogue",
+        func(ctx context.Context, actor verity.Actor) error {
+            ability, err := verity.AbilityOf[*api.CallAnAPI](actor)
+            if err != nil {
+                return fmt.Errorf("actor needs API ability: %w", err)
+            }
+            _ = ability
+            // perform the request using the ability
+            return nil
+        },
     )
-
-    // ...
-  })
-})
+}
 ```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
-import { Send, PostRequest } from '@serenity-js/rest'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: product, price: `£${price}` }  //   that instruct actors how to use their abilities
-        ])),
-    )
-})
-```
-
-In the same manner, we can instruct Wendy to use interactions from the [Verity BDD Web](/api/web) module
-to [navigate](/api/web/class/Navigate) to the web interface of our system under test:
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-import { Send, PostRequest } from '@serenity-js/rest'
-import { Navigate } from '@serenity-js/web'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
-
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: 'Apples', price: '£2.50' }     //   that instruct actors how to use their abilities
-        ])),
-    )
-
-    await actorCalled('Wendy').attemptsTo(
-        Navigate.to('https://example.org'),        // - all Verity BDD interactions have a consistent API,
-    )                                              //   no matter the interface they're interacting with
-  })
-})
-```
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { actorCalled } from '@serenity-js/core'
-import { Send, PostRequest } from '@serenity-js/rest'
-import { Navigate } from '@serenity-js/web'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async () => {
-
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: 'Apples', price: '£2.50' }     //   that instruct actors how to use their abilities
-        ])),
-    )
-
-    await actorCalled('Wendy').attemptsTo(
-        Navigate.to('https://example.org'),        // - all Verity BDD interactions have a consistent API,
-    )                                              //   no matter the interface they're interacting with
-  })
-})
-```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
-import { Send, PostRequest } from '@serenity-js/rest'
-import { Navigate } from '@serenity-js/web'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-
-    await actorCalled('Apisitt').attemptsTo(       // - actors attempt to perform interactions
-        Send.a(PostRequest.to('/products').with([  // - interactions like `Send` are command objects,
-            { name: product, price: `£${price}` }  //   that instruct actors how to use their abilities
-        ])),
-    )
-})
-
-// When Wendy looks for "Apples"
-When('{word} looks for {string}', async (actor: string, product: string) => {
-    await actorCalled(actor).attemptsTo(
-        Navigate.to('https://example.org'),        // - all Verity BDD interactions have a consistent API,
-    )                                              //   no matter the interface they're interacting with
-})
-```
-
-Note how the interaction to [`Navigate.to(url)`](/api/web/class/Navigate) comes from the [`@serenity-js/web`](/api/web) module
-and works regardless of the underlying web browser driver used by the actor, making your test code [portable across different web integration tools](/handbook/design/portable-test-code/).
-Under the hood, the interaction requests the actor's ability to [`BrowseTheWeb`](/api/web/class/BrowseTheWeb/) and Verity BDD returns the appropriate implementation of the ability.
-
-If you wanted to implement an interaction to `navigateTo(url)` yourself, you might do it like this:
-
-```ts
-import { Interaction } from '@serenity-js/core'
-import { BrowseTheWeb } from '@serenity-js/web'
-
-const navigateTo = (url: string) =>
-    Interaction.where(`#actor navigates to ${ url }`, async actor => {
-        const page = await BrowseTheWeb.as(actor).currentPage()
-
-        return page.navigateTo(url)
-    })
-```
-
-Another thing to note about the code samples in this section is that even though Playwright Test, Mocha, and Cucumber have completely different APIs,
-the way we instruct actors to perform interactions is consistent across all test runners. This design makes it easier for you to migrate your test scenarios
-from one test runner to another if needed. It also enables you to make your test suite use **different test runners** for **different types of test scenarios** while **reusing the same underlying test automation code**.
-
-For example, you might want to use Verity BDD with Cucumber for business-facing scenarios, Playwright Test for UI component tests, and with Mocha for REST API tests.
 
 Learn more about:
 - [Actors](/api/core/class/Actor)
 - [Interactions](/api/core/class/Interaction)
-- [Debugging](/handbook/design/debugging)
 
 #### Questions
 
-Apart from enabling interactions, abilities also enable actors to answer [**questions**](/api/core/class/Question)
+Apart from enabling interactions, abilities also enable actors to answer **questions**
 about the state of the system under test and the test execution environment.
-More specifically, **questions** instruct actors how to use their abilities to **retrieve information when the activity is performed** and provide a way to **parameterise activities**.
+More specifically, **questions** instruct actors how to use their abilities to **retrieve information** and provide a way to **parameterise activities**.
 
-When Apisitt uses his ability to [`CallAnApi`](/api/rest/class/CallAnApi) to [`Send`](/api/rest/class/Send) a [`PostRequest`](/api/rest/class/CallAnApi),
-the result of this interaction is stored in the ability. To retrieve its value, we instruct the actor to answer a question about the [`LastResponse`](/api/rest/class/LastResponse), such as [`LastResponse.status()`](/api/rest/class/LastResponse#status).
-This declarative approach to information retrieval not only makes your test scenarios more readable, it provides a consistent API for you to design [assertions](/handbook/design/assertions), [waiting and synchronisation statements](/handbook/design/waiting-and-synchronisation/),
-and perform [data transformations](/handbook/web-testing/page-element-query-language/#transforming-answers-to-questions).
+When Apisitt sends a `PostRequest`, the response is stored in his API ability.
+To assert on it, we use `api.LastResponseStatus{}` — a question about the HTTP status code — together with `ensure.That`:
 
-For example, to instruct Apisitt to assert on the result of the HTTP request, we provide him with an interaction to [`Ensure.that`](/api/assertions/class/Ensure),
-parameterised with a question about the [`LastResponse.status()`](/api/rest/class/LastResponse#status) and an expectation that the status code [equals](/api/assertions/function/equals/) `201`:
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-import { Ensure, equals } from '@serenity-js/assertions'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    expectations "github.com/nchursin/verity-bdd/verity_expectations"
+    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+)
 
-describe('Online shop', () => {
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
 
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
+    apisitt := test.ActorCalled("Apisitt").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: 'Apples', price: '£2.50' }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
+    apisitt.AttemptsTo(
+        api.SendPostRequest("/products").With([]Product{
+            {Name: "Apples", Price: "£2.50"},
+        }),
+        ensure.That(
+            api.LastResponseStatus{},
+            expectations.Equals(201),
+        ),
     )
-
-    // ...
-  })
-})
-```
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { actorCalled } from '@serenity-js/core'
-import { Ensure, equals } from '@serenity-js/assertions'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async () => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: 'Apples', price: '£2.50' }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
-    )
-
-    // ...
-  })
-})
-```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
-import { Ensure, equals } from '@serenity-js/assertions'
-import { Send, PostRequest } from '@serenity-js/rest'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: product, price: `£${price}` }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
-    )
-})
-
-// ...
+}
 ```
 
 An excellent proof of the **design consistency** enabled by the Verity BDD Screenplay Pattern is that
-even though Wendy uses a web browser and not an API client, the way we instruct her to answer [web questions](/handbook/web-testing/)
-and [perform web assertions](/handbook/design/assertions#web-assertions) is identical with how you'd interact with any other interface:
+no matter what ability an actor uses, the way they answer questions and assert on responses is always the same:
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
-import { Ensure, equals, endsWith } from '@serenity-js/assertions'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
-import { Navigate, Page } from '@serenity-js/web'
+```go title="online_shop_test.go"
+apisitt.AttemptsTo(
+    api.SendPostRequest("/products").With([]Product{
+        {Name: "Apples", Price: "£2.50"},
+    }),
+    ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
+)
 
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: 'Apples', price: '£2.50' }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
-    )
-
-    await actorCalled('Wendy').attemptsTo(
-        Navigate.to('https://example.org'),
-        Ensure.that(
-            Page.current().title(),
-            endsWith('My Example Shop'),
-        )
-    )
-  })
-})
-```
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { actorCalled } from '@serenity-js/core'
-import { Ensure, equals, endsWith } from '@serenity-js/assertions'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
-import { Navigate, Page } from '@serenity-js/web'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async () => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: 'Apples', price: '£2.50' }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
-    )
-
-    await actorCalled('Wendy').attemptsTo(
-        Navigate.to('https://example.org'),
-        Ensure.that(
-            Page.current().title(),
-            endsWith('My Example Shop'),
-        )
-    )
-  })
-})
-```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
-import { Ensure, equals, endsWith } from '@serenity-js/assertions'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
-import { Navigate, Page } from '@serenity-js/web'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        Send.a(PostRequest.to('/products').with([
-            { name: product, price: `£${price}` }
-        ])),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
-    )
-})
-
-// When Wendy looks for "Apples"
-When('{word} looks for {string}', async (actor: string, product: string) => {
-    await actorCalled(actor).attemptsTo(
-        Navigate.to('https://example.org'),
-        Ensure.that(
-            Page.current().title(),
-            endsWith('My Example Shop'),
-        )
-    )
-})
+wendy.AttemptsTo(
+    api.SendGetRequest("/products"),
+    ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
+    ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
+)
 ```
 
 Learn more about:
 - [Questions](/api/core/class/Question)
 - [Assertions and expectations](/handbook/design/assertions)
-- [Logging](/handbook/design/logging)
-- [Debugging](/handbook/design/debugging)
 
 #### Tasks
 
 The idea that underpins the Screenplay Pattern is to **capture your domain language** and use your acceptance tests as an opportunity to demonstrate
 how actors interacting with your system accomplish their goals.
 
-Conceptually similar to standard JavaScript functions, [**tasks**](/api/core/class/Task) offer an easy way to **associate business meaning** with **sequences of activities**
+Conceptually similar to standard Go functions, **tasks** offer an easy way to **associate business meaning** with **sequences of activities**
 and turn them into **reusable building blocks** from which your team can assemble test scenarios.
 
-For example, we can use Verity BDD convenient [`Task.where`](/api/core/class/Task/#where) method to define custom tasks that capture how an actor would set up a product catalogue or open an online store:
+For example, we can use `verity.TaskWhere` to define custom tasks that capture how an actor would set up a product catalogue:
 
-```ts title="spec/tasks.ts"
-import { Task } from '@serenity-js/core'
-import { Send, PostRequest, LastResponse } from '@serenity-js/rest'
-import { Navigate, Page } from '@serenity-js/web'
-import { Ensure, equals, endsWith } from '@serenity-js/assertions'
+```go title="tasks.go"
+import (
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    expectations "github.com/nchursin/verity-bdd/verity_expectations"
+    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+)
 
-export interface Product {
-    name:  string;
-    price: string;
+type Product struct {
+    Name  string `json:"name"`
+    Price string `json:"price"`
 }
 
-export const setupProductCatalogue = (products: Product[]) =>
-    Task.where(`#actor sets up the product catalogue`,
-        Send.a(PostRequest.to('/products').with(products)),
-        Ensure.that(
-            LastResponse.status(),
-            equals(201)
-        )
+func SetupProductCatalogue(products []Product) verity.Activity {
+    return verity.TaskWhere("#actor sets up the product catalogue",
+        api.SendPostRequest("/products").With(products),
+        ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
     )
+}
 
-export const openOnlineStore = () =>
-    Task.where(`#actor opens the online store`,
-        Navigate.to('https://example.org'),
-        Ensure.that(
-            Page.current().title(),
-            endsWith('My Example Shop'),
-        )
+func VerifyProductCatalogue() verity.Activity {
+    return verity.TaskWhere("#actor verifies the product catalogue",
+        api.SendGetRequest("/products"),
+        ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
+        ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
     )
+}
 ```
 
-As you can see, custom tasks like these are easy to read and understand, and can be parameterised and reused across different test scenarios, test suites, or even across different projects and teams.
-Tasks can help you capture the domain language, provide a consistent way to structure your test scenarios, and make your test code reusable and easier to maintain.
+As you can see, custom tasks like these are easy to read and understand, and can be parameterised and reused across different test scenarios.
+Tasks help you capture the domain language, provide a consistent way to structure your test scenarios, and make your test code easier to maintain.
 
+```go title="online_shop_test.go"
+import (
+    "context"
+    "testing"
 
-```ts title="spec/online_shop.spec.ts" tab={"label":"Playwright Test"}
-import { describe, it } from '@serenity-js/playwright-test'
+    verity "github.com/nchursin/verity-bdd"
+    "github.com/nchursin/verity-bdd/verity_abilities/api"
+)
 
-import { setupProductCatalogue, openOnlineStore } from './tasks'
+func TestOnlineShop(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
 
-describe('Online shop', () => {
+    apisitt := test.ActorCalled("Apisitt").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-  it('should allow customers to find products of interest', async ({ actorCalled }) => {
+    wendy := test.ActorCalled("Wendy").
+        WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
-    await actorCalled('Apisitt').attemptsTo(
-        setupProductCatalogue([
-            { name: 'Apples', price: '£2.50' }
-        ])
+    apisitt.AttemptsTo(
+        SetupProductCatalogue([]Product{
+            {Name: "Apples", Price: "£2.50"},
+        }),
     )
 
-    await actorCalled('Wendy').attemptsTo(
-        openOnlineStore(),
-        // ... other tasks, like findProductCalled('Apples'),
+    wendy.AttemptsTo(
+        VerifyProductCatalogue(),
     )
-  })
-})
-```
-
-```ts title="spec/online_shop.spec.ts" tab={"label":"WebdriverIO with Mocha"}
-import { describe, it } from 'mocha'
-import { actorCalled } from '@serenity-js/core'
-
-import { setupProductCatalogue, openOnlineStore } from './tasks'
-
-describe('Online shop', () => {
-
-  it('should allow customers to find products of interest', async () => {
-
-    await actorCalled('Apisitt').attemptsTo(
-        setupProductCatalogue([
-            { name: 'Apples', price: '£2.50' }
-        ])
-    )
-
-    await actorCalled('Wendy').attemptsTo(
-        openOnlineStore(),
-        // ... other tasks, like findProductCalled('Apples'),
-    )
-  })
-})
-```
-
-```ts title="features/step_definitions/online_shop.steps.ts" tab={"label":"WebdriverIO with Cucumber"}
-import { Given, When, Then } from '@cucumber/cucumber'
-import { actorCalled } from '@serenity-js/core'
-
-import { setupProductCatalogue, openOnlineStore } from './tasks'
-
-// Given the product catalogue has "Apples" at £2.50
-Given('the product catalogue has {string} at £{float}', async (product: string, price: number) => {
-    await actorCalled('Apisitt').attemptsTo(
-        setupProductCatalogue([
-            { name: 'Apples', price: '£2.50' }
-        ])
-    )
-})
-
-// When Wendy looks for "Apples"
-When('{word} looks for {string}', async (actor: string, product: string) => {
-    await actorCalled(actor).attemptsTo(
-        openOnlineStore(),
-        // ... other tasks, like findProductCalled(product),
-    )
-})
+}
 ```
 
 Learn more about:
@@ -958,70 +468,32 @@ Learn more about:
 
 ### Performing activities at multiple levels
 
-The role of an actor is to perform [activities](/api/core/class/Activity) that demonstrate how to accomplish a given goal.
+The role of an actor is to perform activities that demonstrate how a goal can be accomplished at the given **level of abstraction**.
 
 :::tip[Remember]
 **Actors** represent **people** and **external systems** interacting with the system under test.
 :::
 
-For example, we might have an acceptance test that demonstrates how the system under test enables an actor to accomplish the goal of booking a plane
-ticket.
-If we were using Verity BDD with a spec-style test runner like [Jasmine](/handbook/test-runners/jasmine), [Mocha](/handbook/test-runners/mocha), or [Playwright Test](/handbook/test-runners/playwright-test),
-we could implement such scenario like this:
+For example, we might have an acceptance test that demonstrates how the system under test enables an actor to accomplish the goal of booking a flight.
 
-```typescript tab={"label":"Playwright Test"}
-import { describe, it, test } from '@serenity-js/playwright-test'
+```go title="flight_booking_test.go"
+func TestFlightBooking(t *testing.T) {
+    test := verity.NewVerityTest(ctx, verity.Scene{})
 
-test.use({ defaultActorName: 'Trevor' })
+    trevor := test.ActorCalled("Trevor").
+        WhoCan(api.CallAnApiAt("https://api.airline.org/"))
 
-describe('Serenity Airlines flight booking', () => {                            // system feature
-
-  it('should allow travellers to book a plane ticket', async ({ actor }) => {   // scenario goal
-    await actor.attemptsTo(
-      findFlight('London', 'New York'),                                         // activities
-      chooseFlightClass(FlightClass.Economy),
-      providePaymentDetails(defaultCard),
-      receiveBookingConfirmation(),
+    trevor.AttemptsTo(
+        FindFlight("London", "New York"),   // activities describe the business goal,
+        ChooseFlightClass("Economy"),        // not the underlying API calls
+        ProvidePaymentDetails(defaultCard),
+        ReceiveBookingConfirmation(),
     )
-  })
-})
+}
 ```
 
-```typescript tab={"label":"Mocha"}
-import { actorCalled } from '@serenity-js/core'
-import { describe, it } from 'mocha'
-
-describe('Serenity Airlines flight booking', () => {                            // system feature
-
-  it('should allow travellers to book a plane ticket', () => {                  // scenario goal
-    await actorCalled('Trevor').attemptsTo(
-      findFlight('London', 'New York'),                                         // activities
-      chooseFlightClass(FlightClass.Economy),
-      providePaymentDetails(defaultCard),
-      receiveBookingConfirmation(),
-    )
-  })
-})
-```
-
-```typescript tab={"label":"Jasmine"}
-import { actorCalled } from '@serenity-js/core'
-
-describe('Serenity Airlines flight booking', () => {                            // system feature
-
-  it('should allow travellers to book a plane ticket', () => {                  // scenario goal
-    await actorCalled('Trevor').attemptsTo(
-      findFlight('London', 'New York'),                                         // activities
-      chooseFlightClass(FlightClass.Economy),
-      providePaymentDetails(defaultCard),
-      receiveBookingConfirmation(),
-    )
-  })
-})
-```
-
-If we were using [Cucumber.js](/handbook/test-runners/cucumber), the name of the feature, the goal of the scenario,
-as well as the high-level steps necessary to achieve the goal would already be captured in our [`.feature`](https://cucumber.io/docs/gherkin/reference/) files:
+If you are using a BDD framework like [godog](https://github.com/cucumber/godog), the name of the feature, the goal of the scenario,
+as well as the high-level steps necessary to achieve the goal would already be captured in `.feature` files:
 
 ```gherkin
 Feature: Serenity Airlines flight booking                                       # system feature
@@ -1034,55 +506,26 @@ Feature: Serenity Airlines flight booking                                       
      Then he should receive a booking confirmation
 ```
 
-In this case, each Cucumber [step definition](https://cucumber.io/docs/cucumber/step-definitions/?lang=javascript) is mapped
-to a Verity BDD actor performing one or more activities.
-Completing those activities helps the actor accomplish the mini-goal of the associated Cucumber step:
+In this case, each step definition is mapped to a Verity BDD actor performing one or more activities:
 
-```typescript
-import { Given } from '@cucumber/cucumber'
-import { Actor } from '@serenity-js/core'
+```go title="flight_booking_steps_test.go"
+import (
+    "github.com/cucumber/godog"
+    verity "github.com/nchursin/verity-bdd"
+)
 
-Given('{actor} finds a flight from {string} to {string}',                       // step goal
-  async (actor: Actor, origin: string, destination: string) => {
-    await actor.attemptsTo(
-      findFlight(origin, destination),                                          // activities
+func (s *suite) TrevorFindsAFlight(origin, destination string) error {
+    return s.trevor.AttemptsTo(
+        FindFlight(origin, destination),     // step goal maps to activities
     )
-  }
-)
+}
 
-Given(`{pronoun} chooses the '{flightClass}' flight class`,                     // step goal
-  async (actor: Actor, flightClass: FlightClass) => {
-    await actor.attemptsTo(
-      chooseFlightClass(flightClass),                                           // activities
+func (s *suite) HeChoosesFlightClass(class string) error {
+    return s.trevor.AttemptsTo(
+        ChooseFlightClass(class),
     )
-  }
-)
+}
 ```
-
-From the implementation perspective, functions like `findFlight` or `providePaymentDetails` produce [activities](/api/core/class/Activity),
-which are [command objects](https://refactoring.guru/design-patterns/command) that encapsulate information needed for the actor to perform some defined action.
-
-The way you instruct an actor to perform some activities is always exactly the same, no matter the kind of test you write
-or the type of interface the actor interacts with - you pass them to the [`Actor.attemptsTo`](/api/core/class/Actor#attemptsTo) method.
-This method call makes the actor attempt to perform the activities one by one and returns a standard JavaScript [`Promise`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
-that's resolved when the process is finished, or rejected in case of any errors:
-
-```typescript
-import { actorCalled } from '@serenity-js/core'
-
-await actorCalled('Alice').attemptsTo(
-    activity1,
-    activity2,
-    activity3,
-    // ...
-)
-// returns: Promise<void>
-```
-
-Looking at activities from the _design philosophy perspective_, however, can be much more interesting.
-
-The role of an actor is not _just_ to perform _any_ activities. It is to perform activities that demonstrate how a goal can be accomplished at the given **level of abstraction**.
-The interesting bit is that the way we describe what the goal is and the vocabulary we use to describe what activities it requires vary depending on the level of abstraction we're operating at.
 
 :::tip[Remember]
 **Actors** demonstrate how to accomplish a **goal** by performing **activities** at multiple **levels of abstraction**.
@@ -1098,7 +541,7 @@ an actor should be able to successfully perform the following **high-level activ
 - provide payment details,
 - receive booking confirmation.
 
-The names we give functions that produce those activities, such as `findFlight` or `chooseFlightClass`,
+The names we give functions that produce those activities, such as `FindFlight` or `ChooseFlightClass`,
 represent those steps in the business process and are agnostic of the interface through which actors interact with the system under test.
 
 :::note[Model the expected process, not the existing implementation]
@@ -1114,15 +557,14 @@ It also results in two other major advantages:
 - since we're not tying the implementation to any particular interface, we leave ourselves **more integration options** when it comes to automation.
 
 After all, most business process steps could be accomplished in different ways.
-An actor could `findFlight` by interacting with a web UI, a mobile app, by sending requests to a web service, or even by actually going to the ticket office at the airport!
+An actor could `FindFlight` by interacting with a web UI, a mobile app, by sending requests to a web service, or even by actually going to the ticket office at the airport!
 :::
 
-At the **low level of abstraction**, e.g. in UI component tests, the vocabulary we use to describe actor's activities
+At the **low level of abstraction**, the vocabulary we use to describe actor's activities
 is focused on the **interface** the actor needs to interact with.
-Here the goal might be to _use the web UI to specify the origin airport_. To accomplish it, the actor would need to:
-- click on the `origin airport` widget
-- enter the name of the origin city, like `London`
-- pick the first suggested airport from the list
+Here the goal might be to _use the REST API to search for available flights_. To accomplish it, the actor would need to:
+- send a `GET` request to `/flights` with origin and destination parameters
+- assert that the response contains at least one available flight
 
 :::tip[Remember]
 The core idea behind the Screenplay Pattern is to express the acceptance tests from the perspective of **actors**
@@ -1141,34 +583,20 @@ The fascinating aspect of looking at your test scenarios as sequences of activit
 made up of activities, is that this mental model lends itself perfectly to [functional composition](https://en.wikipedia.org/wiki/Function_composition_(computer_science))
 and making _activities_ the primary component of code reuse in Verity BDD.
 
-### Start with Verity BDD Screenplay Pattern 🚀
+### Start with Verity BDD Screenplay Pattern
 
 The easiest way to **experience** working with Verity BDD and the Screenplay Pattern is
-to **follow the tutorial** and write [**your first web scenario**](/handbook/tutorials/your-first-web-scenario)!
+to **follow the getting started guide** and write your [**first API scenario**](/en/guides/1_getting-started/)!
 
-When you're ready to **start your own test automation project**, use one of the available [**Verity BDD Project Templates**](/handbook/project-templates/)
-as they include a handful of Screenplay scenarios and combine some of the most popular configurations of Verity BDD modules and test automation tools:
-
-- [REST API testing with Cucumber and Verity BDD](https://github.com/serenity-js/serenity-js-cucumber-template)
-- [REST API testing with Mocha and Verity BDD](https://github.com/serenity-js/serenity-js-mocha-template)
-- [Web testing with Cucumber, Playwright, and Verity BDD](https://github.com/serenity-js/serenity-js-cucumber-playwright-template)
-- [Web testing with Playwright Test and Verity BDD](https://github.com/serenity-js/serenity-js/tree/main/examples/playwright-test-todomvc)
-- [Web testing with WebdriverIO, Mocha, and Verity BDD](https://github.com/serenity-js/serenity-js/tree/main/examples/webdriverio-mocha-todomvc)
-- [Web testing with WebdriverIO, Cucumber, and Verity BDD](https://github.com/serenity-js/serenity-js-cucumber-webdriverio-template)
-
-To dive even deeper, check out the [Verity BDD repository](https://github.com/serenity-js/serenity-js)
-and explore the [examples](https://github.com/serenity-js/serenity-js/tree/main/examples).
-
-:::tip[Try Verity BDD in your browser]
-Thanks to [GitHub Codespaces](/handbook/project-templates/#serenityjs-codespaces),
-you can follow the [web testing tutorial](/handbook/tutorials/your-first-web-scenario)
-and use any of the [Verity BDD Project Templates](/handbook/project-templates/) right here in your browser,
-no local installation required! 🚀
-:::
+<!-- :::tip[Try Verity BDD in your browser] -->
+<!-- Thanks to [GitHub Codespaces](/handbook/project-templates/#serenityjs-codespaces), -->
+<!-- you can follow the tutorial and use any of the [Verity BDD Project Templates](/handbook/project-templates/) right here in your browser, -->
+<!-- no local installation required! -->
+<!-- ::: -->
 
 ### History of the Screenplay Pattern
 
-[Verity BDD](https://github.com/serenity-js) introduced the Screenplay Pattern to JavaScript back in 2016,
+[Verity BDD](https://github.com/nchursin/verity-bdd) is a Go implementation of the Screenplay Pattern,
 but the ideas behind the pattern have been around since 2007 in various forms.
 
 This list is a chronological order of significant events, implementations, and writings related to the evolution of the Screenplay Pattern.
@@ -1188,12 +616,11 @@ This list is a chronological order of significant events, implementations, and w
 * 2016: [Page Objects Refactored: SOLID Steps to the Screenplay/Journey Pattern](https://dzone.com/articles/page-objects-refactored-solid-steps-to-the-screenp) - by Antony Marcano, Andy Palmer, John Ferguson Smart, and Jan Molak
 * 2016: [Screenplays and Journeys, Not Page Objects](https://testerstories.com/2016/06/screenplays-and-journeys-not-page-objects/) - blog post by Jeff Nyman
 * 2016: [Screenplay Pattern](https://serenity-js.org/handbook/design/screenplay-pattern/) as described by Jan Molak
-* 2016: [Verity BDD](https://github.com/serenity-js/serenity-js) - Jan Molak starts the Verity BDD project - the original JavaScript/TypeScript implementation of the Screenplay Pattern
-* 2017: [Testing modern webapps. At scale.](https://www.slideshare.net/janmolak/testing-modern-webapps-at-scale) - Jan Molak introduces the idea of "Blended Testing" - making Screenplay Pattern tests scenarios interact with multiple interfaces as a way to improve test performance and encourage code reuse
-* 2017: [Having Our Cake and Eating It](https://speakerdeck.com/npryce/having-our-cake-and-eating-it-1) - [Nat Pryce](http://www.natpryce.com/) introduces the idea of using the Screenplay Pattern to write tests that run in milliseconds
-* 2019: [ScreenPy](https://pypi.org/project/screenpy/) - Python implementation of the Screenplay Pattern by [Perry Goy](https://www.linkedin.com/in/perry-goy/), inspired by Serenity BDD and Verity BDD implementations
-* 2020: [Boa Constrictor](https://automationpanda.com/2020/10/16/introducing-boa-constrictor-the-net-screenplay-pattern/) - a .NET implementation of Screenplay by [Andrew Knight](https://automationpanda.com/), inspired by Serenity BDD and Verity BDD
+* 2016: [Serenity/JS](https://github.com/serenity-js/serenity-js) - Jan Molak starts the Serenity/JS project - the original JavaScript/TypeScript implementation of the Screenplay Pattern
+* 2017: [Testing modern webapps. At scale.](https://www.slideshare.net/janmolak/testing-modern-webapps-at-scale) - Jan Molak introduces the idea of "Blended Testing"
+* 2019: [ScreenPy](https://pypi.org/project/screenpy/) - Python implementation of the Screenplay Pattern by [Perry Goy](https://www.linkedin.com/in/perry-goy/)
+* 2020: [Boa Constrictor](https://automationpanda.com/2020/10/16/introducing-boa-constrictor-the-net-screenplay-pattern/) - a .NET implementation of Screenplay by [Andrew Knight](https://automationpanda.com/)
 * 2020: [Understanding Screenplay](https://cucumber.io/blog/bdd/understanding-screenplay-(part-1)/) - blog series by [Matt Wynne](https://blog.mattwynne.net/)
-* 2021: [Cucumber Screenplay](https://github.com/cucumber/screenplay.js) and [Sub-second TDD](https://github.com/subsecondtdd/todo-subsecond) - implementation by [Aslak Hellesøy](https://www.aslakhellesoy.com/), building on the Screenplay Pattern, and further exploring Nat Pryce's idea of sub-second acceptance tests and Jan Molak's "blended testing"
+* 2021: [Cucumber Screenplay](https://github.com/cucumber/screenplay.js) and [Sub-second TDD](https://github.com/subsecondtdd/todo-subsecond) - implementation by [Aslak Hellesøy](https://www.aslakhellesoy.com/)
 * 2021: [BDD in Action, 2nd Edition](https://www.manning.com/books/bdd-in-action-second-edition) by John Ferguson Smart and Jan Molak includes several chapters and many examples of using the Screenplay Pattern in Java and TypeScript
 :::
