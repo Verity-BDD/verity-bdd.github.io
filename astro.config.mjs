@@ -1,38 +1,49 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
+import { defineConfig } from "astro/config";
+import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://nchursin.github.io',
-	base: '/verity-bdd-site',
-	integrations: [
-		starlight({
-			title: 'Verity BDD',
-			description: 'Screenplay Pattern testing framework for Go',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/nchursin/verity-bdd' }],
-			defaultLocale: 'en',
-			locales: {
-				en: { label: 'English', lang: 'en' },
-				// ru: { label: 'Русский', lang: 'ru' },
-			},
-			sidebar: [
-				{
-					label: 'Guides',
-					translations: { ru: 'Руководства' },
-					items: [{ autogenerate: { directory: 'guides' } }],
-				},
-				{
-					label: 'Examples',
-					translations: { ru: 'Примеры' },
-					items: [{ autogenerate: { directory: 'examples' } }],
-				},
-				{
-					label: 'API Reference',
-					translations: { ru: 'API Справочник' },
-					items: [{ autogenerate: { directory: 'api' } }],
-				},
-			],
-		}),
-	],
+  site: "https://nchursin.github.io",
+  base: "/verity-bdd-site",
+  integrations: [
+    starlight({
+      title: "Verity BDD",
+      description: "Screenplay Pattern testing framework for Go",
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/nchursin/verity-bdd",
+        },
+      ],
+      defaultLocale: "en",
+      locales: {
+        en: { label: "English", lang: "en" },
+        // ru: { label: 'Русский', lang: 'ru' },
+      },
+      sidebar: [
+        {
+          label: "Guides",
+          translations: { ru: "Руководства" },
+          items: [{ autogenerate: { directory: "guides" } }],
+        },
+        {
+          label: "Core Concepts",
+          translations: { ru: "Ключевые особенности" },
+          items: [{ autogenerate: { directory: "core_concepts" } }],
+        },
+        {
+          label: "Examples",
+          translations: { ru: "Примеры" },
+          items: [{ autogenerate: { directory: "examples" } }],
+        },
+        {
+          label: "API Reference",
+          translations: { ru: "API Справочник" },
+          items: [{ autogenerate: { directory: "api" } }],
+        },
+      ],
+    }),
+  ],
 });
