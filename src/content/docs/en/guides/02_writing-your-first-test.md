@@ -8,45 +8,6 @@ sidebar:
 This guide walks you through writing a complete API test using the Screenplay Pattern.
 We'll use [JSONPlaceholder](https://jsonplaceholder.typicode.com) — a free public API — as the system under test.
 
-## The complete test
-
-```go title="post_api_test.go"
-package myapp_test
-
-import (
-    "testing"
-
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
-)
-
-func TestCreatePost(t *testing.T) {
-    test := verity.NewVerityTest(t, verity.Scene{})
-
-    author := test.ActorCalled("Author").WhoCan(
-        api.CallAnApiAt("https://jsonplaceholder.typicode.com"),
-    )
-
-    author.AttemptsTo(
-        api.SendPostRequest("/posts").With(map[string]any{
-            "title":  "My First Post",
-            "body":   "Hello from Verity BDD",
-            "userId": 1,
-        }),
-        ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
-        ensure.That(api.LastResponseBody{}, expectations.Contains("My First Post")),
-    )
-}
-```
-
-Run it with:
-
-```bash
-go test ./...
-```
-
 ## Step by step
 
 ### 1. Create a VerityTest
@@ -116,66 +77,21 @@ api.ResponseTime{}                      // Response time in milliseconds (int64)
 api.NewResponseBodyAsJSON[T]()          // Deserialise body into struct T
 ```
 
-## Multiple actors
+## The complete test
 
-Use multiple actors to model different roles in the same scenario:
-
-```go
-func TestProductCatalogue(t *testing.T) {
-    test := verity.NewVerityTest(t, verity.Scene{})
-
-    manager := test.ActorCalled("Manager").WhoCan(
-        api.CallAnApiAt("https://api.example.org"),
-    )
-    customer := test.ActorCalled("Customer").WhoCan(
-        api.CallAnApiAt("https://api.example.org"),
-    )
-
-    manager.AttemptsTo(
-        api.SendPostRequest("/products").With(map[string]any{
-            "name": "Apples", "price": "£2.50",
-        }),
-        ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
-    )
-
-    customer.AttemptsTo(
-        api.SendGetRequest("/products"),
-        ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
-        ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
-    )
-}
-```
-
-## Reusable tasks
-
-Extract repeated sequences of interactions into named tasks using `verity.TaskWhere`:
-
-```go title="tasks.go"
+```go title="post_api_test.go"
 package myapp_test
 
 import (
+    "testing"
+
     verity "github.com/nchursin/verity-bdd"
     "github.com/nchursin/verity-bdd/verity_abilities/api"
     expectations "github.com/nchursin/verity-bdd/verity_expectations"
     "github.com/nchursin/verity-bdd/verity_expectations/ensure"
 )
 
-type Post struct {
-    Title  string `json:"title"`
-    Body   string `json:"body"`
-    UserID int    `json:"userId"`
-}
-
-func PublishPost(post Post) verity.Activity {
-    return verity.TaskWhere("#actor publishes a post",
-        api.SendPostRequest("/posts").With(post),
-        ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
-    )
-}
-```
-
-```go title="post_api_test.go"
-func TestPublishPost(t *testing.T) {
+func TestCreatePost(t *testing.T) {
     test := verity.NewVerityTest(t, verity.Scene{})
 
     author := test.ActorCalled("Author").WhoCan(
@@ -183,10 +99,23 @@ func TestPublishPost(t *testing.T) {
     )
 
     author.AttemptsTo(
-        PublishPost(Post{Title: "My First Post", Body: "Hello!", UserID: 1}),
+        api.SendPostRequest("/posts").With(map[string]any{
+            "title":  "My First Post",
+            "body":   "Hello from Verity BDD",
+            "userId": 1,
+        }),
+        ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
+        ensure.That(api.LastResponseBody{}, expectations.Contains("My First Post")),
     )
 }
 ```
+
+Run it with:
+
+```bash
+go test ./...
+```
+
 
 ## Console output
 

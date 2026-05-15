@@ -2,7 +2,7 @@
 title: Custom Test Runner
 description: Uses any `*testing.T` wrapper
 sidebar:
-  order: 5
+  order: 30
 ---
 
 ## Bring our own runner
