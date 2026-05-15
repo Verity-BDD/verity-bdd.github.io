@@ -24,14 +24,19 @@ export default defineConfig({
       },
       sidebar: [
         {
-          label: "Guides",
-          translations: { ru: "Руководства" },
-          items: [{ autogenerate: { directory: "guides" } }],
+          label: "Get Started",
+          translations: { ru: "С чего начать" },
+          items: [{ autogenerate: { directory: "get_started" } }],
         },
         {
           label: "Core Concepts",
           translations: { ru: "Ключевые особенности" },
           items: [{ autogenerate: { directory: "core_concepts" } }],
+        },
+        {
+          label: "Recipies",
+          translations: { ru: "Рецепты" },
+          items: [{ autogenerate: { directory: "guides" } }],
         },
         {
           label: "Examples",
