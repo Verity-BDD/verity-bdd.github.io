@@ -43,18 +43,26 @@ jobs:
           mkdir -p src/content/docs/en/api
           cd lib-source
 
-          for pkg in verity_abilities/api verity_abilities/take_notes verity_expectations verity_expectations/ensure verity_answerable verity_reporting/console_reporter verity_reporting/allure_reporter; do
+          gomarkdoc "./" --output "../src/content/docs/en/api/verity-bdd.md"
+          tmp=$(mktemp)
+          echo "---" > "$tmp"
+          echo "title: verity-bdd" >> "$tmp"
+          echo "description: API reference for verity-bdd" >> "$tmp"
+          echo "---" >> "$tmp"
+          cat "../src/content/docs/en/api/verity-bdd.md" >> "$tmp"
+          mv "$tmp" "../src/content/docs/en/api/verity-bdd.md"
+
+          for pkg in verity_abilities verity_abilities/api verity_abilities/take_notes verity_expectations verity_expectations/ensure verity_answerable verity_reporting/console_reporter verity_reporting/allure_reporter; do
             if [ -d "$pkg" ]; then
-              name=$(echo "$pkg" | tr '/' '-')
-              gomarkdoc "./$pkg" --output "../src/content/docs/en/api/${name}.md"
-              # Prepend frontmatter (gomarkdoc outputs plain markdown)
+              mkdir -p "../src/content/docs/en/api/$(dirname "$pkg")"
+              gomarkdoc "./$pkg" --output "../src/content/docs/en/api/${pkg}.md"
               tmp=$(mktemp)
               echo "---" > "$tmp"
               echo "title: $pkg" >> "$tmp"
               echo "description: API reference for $pkg" >> "$tmp"
               echo "---" >> "$tmp"
-              cat "../src/content/docs/en/api/${name}.md" >> "$tmp"
-              mv "$tmp" "../src/content/docs/en/api/${name}.md"
+              cat "../src/content/docs/en/api/${pkg}.md" >> "$tmp"
+              mv "$tmp" "../src/content/docs/en/api/${pkg}.md"
             fi
           done
 
