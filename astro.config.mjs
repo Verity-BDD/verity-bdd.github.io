@@ -5,7 +5,7 @@ import starlight from "@astrojs/starlight";
 // https://astro.build/config
 export default defineConfig({
   site: "https://nchursin.github.io",
-  base: "/",
+  base: "/verity-bdd-site/",
   integrations: [
     starlight({
       title: "Verity BDD",
