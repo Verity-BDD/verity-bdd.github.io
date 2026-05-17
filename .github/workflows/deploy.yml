@@ -27,7 +27,7 @@ jobs:
       - name: Checkout lib repo
         uses: actions/checkout@v4
         with:
-          repository: nchursin/verity-bdd
+          repository: verity-bdd/verity-bdd
           path: lib-source
 
       - name: Setup Go
