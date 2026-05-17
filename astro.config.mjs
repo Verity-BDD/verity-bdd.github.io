@@ -8,6 +8,7 @@ export default defineConfig({
   base: "/verity-bdd-site/",
   integrations: [
     starlight({
+      customCss: ['./src/styles/custom.css'],
       title: "Verity BDD",
       description: "Screenplay Pattern testing framework for Go",
       social: [

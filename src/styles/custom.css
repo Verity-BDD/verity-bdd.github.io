@@ -1,0 +1,5 @@
+@media (min-width: 50rem) {
+  sl-sidebar-state-persist ul ul a {
+    font-size: var(--sl-text-base);
+  }
+}

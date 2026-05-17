@@ -48,6 +48,8 @@ jobs:
           echo "---" > "$tmp"
           echo "title: verity-bdd" >> "$tmp"
           echo "description: API reference for verity-bdd" >> "$tmp"
+          echo "sidebar:" >> "$tmp"
+          echo "  order: 0" >> "$tmp"
           echo "---" >> "$tmp"
           cat "../src/content/docs/en/api/verity-bdd.md" >> "$tmp"
           mv "$tmp" "../src/content/docs/en/api/verity-bdd.md"
