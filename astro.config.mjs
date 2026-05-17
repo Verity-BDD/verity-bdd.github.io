@@ -4,18 +4,18 @@ import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://nchursin.github.io",
-  base: "/verity-bdd-site/",
+  site: "https://verity-bdd.github.io",
+  base: "/",
   integrations: [
     starlight({
-      customCss: ['./src/styles/custom.css'],
+      customCss: ["./src/styles/custom.css"],
       title: "Verity BDD",
       description: "Screenplay Pattern testing framework for Go",
       social: [
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/nchursin/verity-bdd",
+          href: "https://github.com/verity-bdd/verity-bdd",
         },
       ],
       defaultLocale: "en",
