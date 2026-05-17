@@ -18,10 +18,10 @@ Assertions follow this same consistent approach, expressed using the `ensure.Tha
 
 ```go
 import (
-    verity "github.com/nchursin/verity-bdd"
-    answerable "github.com/nchursin/verity-bdd/verity_answerable"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 actor.AttemptsTo(
@@ -52,9 +52,9 @@ The actual value in `ensure.That` is always a `Question[T]`. Verity BDD provides
 
 ```go
 import (
-    answerable "github.com/nchursin/verity-bdd/verity_answerable"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 actor.AttemptsTo(
@@ -68,9 +68,9 @@ actor.AttemptsTo(
 
 ```go
 import (
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 apisitt.AttemptsTo(
@@ -93,10 +93,10 @@ Consider a task that verifies a URL returns 200 OK:
 
 ```go title="tasks.go"
 import (
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 func CheckURL(path string) verity.Activity {
@@ -134,8 +134,8 @@ import (
     "strings"
 
     answerable "github.comchursin/verity-bdd/verity_answerable"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 actor.AttemptsTo(
@@ -189,9 +189,9 @@ import (
     "github.com/google/go-cmp/cmp"
     "github.com/google/go-cmp/cmp/cmpopts"
 
-    answerable "github.com/nchursin/verity-bdd/verity_answerable"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 type User struct {
@@ -249,11 +249,11 @@ import (
     "context"
     "encoding/json"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    answerable "github.com/nchursin/verity-bdd/verity_answerable"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 type Product struct {

@@ -98,7 +98,7 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
 func TestOnlineShop(t *testing.T) {
@@ -152,8 +152,8 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 func TestOnlineShop(t *testing.T) {
@@ -225,8 +225,8 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 func TestOnlineShop(t *testing.T) {
@@ -263,8 +263,8 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 type Product struct {
@@ -306,8 +306,8 @@ import (
     "context"
     "fmt"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 func GetProducts() verity.Activity {
@@ -344,10 +344,10 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 func TestOnlineShop(t *testing.T) {
@@ -402,10 +402,10 @@ For example, we can use `verity.TaskWhere` to define custom tasks that capture h
 
 ```go title="tasks.go"
 import (
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 type Product struct {
@@ -437,8 +437,8 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 func TestOnlineShop(t *testing.T) {
@@ -511,7 +511,7 @@ In this case, each step definition is mapped to a Verity BDD actor performing on
 ```go title="flight_booking_steps_test.go"
 import (
     "github.com/cucumber/godog"
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
 func (s *suite) TrevorFindsAFlight(origin, destination string) error {
@@ -596,7 +596,7 @@ to **follow the getting started guide** and write your [**first API scenario**](
 
 ### History of the Screenplay Pattern
 
-[Verity BDD](https://github.com/nchursin/verity-bdd) is a Go implementation of the Screenplay Pattern,
+[Verity BDD](https://github.com/verity-bdd/verity-bdd) is a Go implementation of the Screenplay Pattern,
 but the ideas behind the pattern have been around since 2007 in various forms.
 
 This list is a chronological order of significant events, implementations, and writings related to the evolution of the Screenplay Pattern.

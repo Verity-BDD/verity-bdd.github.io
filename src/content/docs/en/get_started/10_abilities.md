@@ -37,7 +37,7 @@ Define the operations the ability exposes to interactions and questions:
 package filesystem
 
 import (
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
 // FileSystemAbility enables an actor to interact with the file system.
@@ -143,7 +143,7 @@ import (
     "context"
     "fmt"
 
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
 // WriteFileActivity writes content to a file.
@@ -220,7 +220,7 @@ import (
     "context"
     "fmt"
 
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
 // FileContentQuestion retrieves the content of a file.
@@ -277,9 +277,9 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 
     "myproject/filesystem"
 )

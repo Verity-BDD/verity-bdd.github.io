@@ -31,7 +31,7 @@ type TestResult interface {
 }
 ```
 
-Import both from `"github.com/nchursin/verity-bdd/verity_reporting"`.
+Import both from `"github.com/verity-bdd/verity-bdd/verity_reporting"`.
 
 The following tutorial builds a `MarkdownReporter` that writes a `.md` file for each test run.
 
@@ -48,7 +48,7 @@ import (
     "os"
     "strings"
 
-    verity_reporting "github.com/nchursin/verity-bdd/verity_reporting"
+    verity_reporting "github.com/verity-bdd/verity-bdd/verity_reporting"
 )
 
 type MarkdownReporter struct {
@@ -154,7 +154,7 @@ import (
     "context"
     "testing"
 
-    verity "github.com/nchursin/verity-bdd"
+    verity "github.com/verity-bdd/verity-bdd"
     "myproject/markdown_reporter"
 )
 

@@ -13,8 +13,8 @@ Verity BDD ships with two reporters ready to use. You can also build your own by
 
 ```go title="my_test.go"
 import (
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_reporting/console_reporter"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_reporting/console_reporter"
 )
 
 func TestMyFeature(t *testing.T) {
@@ -51,8 +51,8 @@ reporter.SetOutput(f)
 
 ```go title="my_test.go"
 import (
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_reporting/allure_reporter"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_reporting/allure_reporter"
 )
 
 func TestMyFeature(t *testing.T) {

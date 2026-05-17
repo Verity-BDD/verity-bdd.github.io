@@ -48,14 +48,14 @@ my-project/
 In your Go module, run:
 
 ```bash
-go get github.com/nchursin/verity-bdd
+go get github.com/verity-bdd/verity-bdd
 ```
 
 ## Package overview
 
 | Package | Description |
 |---|---|
-| `github.com/nchursin/verity-bdd` | Core Screenplay API: actors, tasks, interactions, questions |
+| `github.com/verity-bdd/verity-bdd` | Core Screenplay API: actors, tasks, interactions, questions |
 | `verity_abilities/api` | HTTP API ability and built-in interactions |
 | `verity_answerable` | Helpers for wrapping static and dynamic values as questions |
 | `verity_expectations` | Built-in expectations (`Equals`, `Contains`, `Satisfies`, …) |

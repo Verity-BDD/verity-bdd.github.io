@@ -17,7 +17,7 @@ import (
     "fmt"
     _ "github.com/lib/pq"
 
-    "github.com/nchursin/verity-bdd/verity_abilities"
+    "github.com/verity-bdd/verity-bdd/verity_abilities"
 )
 
 type DatabaseAbility interface {

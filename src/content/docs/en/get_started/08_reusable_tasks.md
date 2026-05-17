@@ -11,10 +11,10 @@ Extract repeated sequences of interactions into named tasks using `verity.TaskWh
 package myapp_test
 
 import (
-    verity "github.com/nchursin/verity-bdd"
-    "github.com/nchursin/verity-bdd/verity_abilities/api"
-    expectations "github.com/nchursin/verity-bdd/verity_expectations"
-    "github.com/nchursin/verity-bdd/verity_expectations/ensure"
+    verity "github.com/verity-bdd/verity-bdd"
+    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
 
 type Post struct {
