@@ -22,6 +22,27 @@ go version
 # go version go1.21.0 darwin/arm64
 ```
 
+## Create a new Go project
+
+Create a directory for your project and initialize a Go module:
+
+```bash
+mkdir my-project
+cd my-project
+go mod init github.com/yourorg/my-project
+```
+
+Replace `github.com/yourorg/my-project` with your module path. For local-only projects, a simple name like `myproject` works fine.
+
+Verity BDD tests live alongside your code and use the standard Go test file naming convention — any file ending in `_test.go`. You can place them anywhere in your module:
+
+```
+my-project/
+├── go.mod
+└── tests/
+    └── create_post_test.go
+```
+
 ## Install Verity BDD
 
 In your Go module, run:
