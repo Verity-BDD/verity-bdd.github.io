@@ -6,6 +6,9 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   site: "https://verity-bdd.github.io",
   base: "/",
+  redirects: {
+    "/": "/en/",
+  },
   integrations: [
     starlight({
       customCss: ["./src/styles/custom.css"],
