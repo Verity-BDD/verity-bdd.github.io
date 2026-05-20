@@ -11,7 +11,7 @@ sidebar:
 
 ## Prerequisites
 
-Verity BDD requires **Go 1.21 or later**.
+Verity BDD requires **Go 1.23 or later**.
 
 If you don't have Go installed, follow the official installation guide at [go.dev/doc/install](https://go.dev/doc/install).
 
@@ -19,7 +19,7 @@ To verify your installation:
 
 ```bash
 go version
-# go version go1.21.0 darwin/arm64
+# go version go1.23.0 darwin/arm64
 ```
 
 ## Create a new Go project
