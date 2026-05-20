@@ -132,4 +132,4 @@ By default, Verity BDD prints a step-by-step execution log to the console:
 ✅ TestCreatePost: PASSED (0.19s)
 ```
 
-For Allure reporting, see the [Reporting guide](/en/get_started/03_reporting/).
+For Allure reporting, see the [Reporting guide](/en/get_started/20_reporting/).
