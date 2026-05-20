@@ -65,4 +65,4 @@ go get github.com/verity-bdd/verity-bdd
 
 ## Next steps
 
-Once installed, head to [Writing Your First Test](/en/guides/2_writing-your-first-test/) to write your first Screenplay-style API test.
+Once installed, head to [Writing Your First Test](/en/get_started/02_writing-your-first-test/) to write your first Screenplay-style API test.
