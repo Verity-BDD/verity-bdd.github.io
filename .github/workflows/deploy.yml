@@ -3,94 +3,160 @@ name: Deploy Documentation
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   repository_dispatch:
     types: [lib-updated]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.run_id) || 'pages' }}
   cancel-in-progress: false
 
 jobs:
   build:
     name: Build
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout docs repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate library dispatch payload
+        if: github.event_name == 'repository_dispatch'
+        env:
+          LIBRARY_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          if [[ ! "$LIBRARY_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid or missing repository_dispatch lowercase library SHA: '$LIBRARY_SHA'" >&2
+            exit 1
+          fi
+          echo "Repository dispatch requested library SHA: $LIBRARY_SHA"
 
       - name: Checkout lib repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: verity-bdd/verity-bdd
           path: lib-source
+          ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.sha || 'main' }}
+
+      - name: Record selected library SHA
+        id: library
+        env:
+          REQUESTED_SHA: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.sha || '' }}
+        run: |
+          selected_sha=$(git -C lib-source rev-parse HEAD)
+          if [[ -n "$REQUESTED_SHA" && "$selected_sha" != "$REQUESTED_SHA" ]]; then
+            echo "Checked out $selected_sha instead of requested $REQUESTED_SHA" >&2
+            exit 1
+          fi
+          if [[ -n "$(git -C lib-source status --porcelain --untracked-files=normal)" ]]; then
+            echo "Library checkout is unexpectedly dirty" >&2
+            exit 1
+          fi
+          echo "Selected library SHA: $selected_sha"
+          echo "sha=$selected_sha" >> "$GITHUB_OUTPUT"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version: '1.23'
+          go-version: '1.23.4'
+          cache-dependency-path: scripts/api-docs/go.sum
 
-      - name: Install gomarkdoc
-        run: go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
+      - name: Install pinned Go tools
+        run: |
+          go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
+          go install honnef.co/go/tools/cmd/staticcheck@v0.5.1
+
+      - name: Verify API generator
+        working-directory: scripts/api-docs
+        run: |
+          gofmt_diff=$(gofmt -d .)
+          if [[ -n "$gofmt_diff" ]]; then
+            printf '%s\n' "$gofmt_diff"
+            exit 1
+          fi
+          go test -count=10 ./...
+          go test -race ./...
+          go vet ./...
+          staticcheck ./...
+          go mod verify
+          go mod tidy -diff
+
+      - name: Validate workflow
+        uses: rhysd/actionlint@03d0035246f3e81f36aed592ffb4bebf33a03106 # v1.7.7
 
       - name: Generate API reference
+        working-directory: scripts/api-docs
+        env:
+          LIBRARY_SHA: ${{ steps.library.outputs.sha }}
         run: |
-          mkdir -p src/content/docs/en/api
-          cd lib-source
+          go run . \
+            --lib-dir ../../lib-source \
+            --output-dir ../../src/content/docs/en/api \
+            --gomarkdoc "$(go env GOPATH)/bin/gomarkdoc" \
+            --library-sha "$LIBRARY_SHA"
 
-          gomarkdoc "./" --output "../src/content/docs/en/api/verity-bdd.md"
-          tmp=$(mktemp)
-          echo "---" > "$tmp"
-          echo "title: verity-bdd" >> "$tmp"
-          echo "description: API reference for verity-bdd" >> "$tmp"
-          echo "sidebar:" >> "$tmp"
-          echo "  order: 0" >> "$tmp"
-          echo "---" >> "$tmp"
-          cat "../src/content/docs/en/api/verity-bdd.md" >> "$tmp"
-          mv "$tmp" "../src/content/docs/en/api/verity-bdd.md"
-
-          for pkg in verity_abilities/api verity_abilities/take_notes verity_expectations verity_expectations/ensure verity_answerable verity_reporting/console_reporter verity_reporting/allure_reporter; do
-            if [ -d "$pkg" ]; then
-              mkdir -p "../src/content/docs/en/api/$(dirname "$pkg")"
-              gomarkdoc "./$pkg" --output "../src/content/docs/en/api/${pkg}.md"
-              tmp=$(mktemp)
-              echo "---" > "$tmp"
-              echo "title: $pkg" >> "$tmp"
-              echo "description: API reference for $pkg" >> "$tmp"
-              echo "---" >> "$tmp"
-              cat "../src/content/docs/en/api/${pkg}.md" >> "$tmp"
-              mv "$tmp" "../src/content/docs/en/api/${pkg}.md"
-            fi
-          done
+      - name: Upload generated API for PR review
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: generated-api-markdown
+          path: src/content/docs/en/api/
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install and audit dependencies
+        run: |
+          npm ci
+          npm audit --audit-level=low
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Build Astro site
         run: npm run build
 
+      - name: Verify all API routes
+        run: |
+          routes=(
+            verity-bdd
+            verity_abilities/api
+            verity_abilities/take_notes
+            verity_abilities/wait
+            verity_answerable
+            verity_expectations
+            verity_expectations/ensure
+            verity_reporting
+            verity_reporting/allure_reporter
+            verity_reporting/console_reporter
+          )
+          for route in "${routes[@]}"; do
+            test -f "dist/en/api/${route}/index.html" || {
+              echo "Missing built API route: /en/api/${route}/" >&2
+              exit 1
+            }
+          done
+
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: dist/
 
   deploy:
     name: Deploy
+    if: github.event_name != 'pull_request'
     needs: build
+    permissions:
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -98,4 +164,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
