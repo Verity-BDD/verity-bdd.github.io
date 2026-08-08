@@ -1,393 +1,195 @@
 ---
 title: Ability Examples
-description: Real-world examples of custom Ability implementations
+description: Build a custom stateful ability with current Verity BDD APIs
 ---
 
-Examples of Abilities for various testing scenarios.
+An ability is an object stored on an actor. Activities use it to change the system or the ability's state; questions use it to retrieve values for assertions.
 
-## Database Ability (PostgreSQL)
+`verity.Ability` is currently an empty interface, so every Go type satisfies it. Defining a domain-specific interface is still useful because `verity.AbilityOf[T](actor)` returns that exact interface and keeps activities decoupled from the implementation. Embedding `verity.Ability` is an optional marker convention, not a compiler-enforced requirement.
 
-### Interface
+This example implements a small in-memory key/value store. The same structure works for database clients, file systems, queues, WebSocket clients, and other integrations.
 
-```go
-package database
+## Define and implement the ability
+
+```go title="keystore/ability.go"
+package keystore
 
 import (
-    "database/sql"
     "fmt"
-    _ "github.com/lib/pq"
+    "sync"
 
-    "github.com/verity-bdd/verity-bdd/verity_abilities"
+    verity "github.com/verity-bdd/verity-bdd"
 )
 
-type DatabaseAbility interface {
-    abilities.Ability
+// Ability describes only the operations activities and questions need.
+type Ability interface {
+    verity.Ability // optional marker
+    Put(key, value string)
+    Get(key string) (string, error)
+}
 
-    Connect(dsn string) error
-    Disconnect() error
-    Ping() error
+type memoryStore struct {
+    mu     sync.RWMutex
+    values map[string]string
+}
 
-    Query(query string, args ...interface{}) (*sql.Rows, error)
-    QueryRow(query string, args ...interface{}) *sql.Row
-    Execute(query string, args ...interface{}) (sql.Result, error)
+func InMemory() Ability {
+    return &memoryStore{values: make(map[string]string)}
+}
 
-    BeginTx() (*sql.Tx, error)
+func (s *memoryStore) Put(key, value string) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.values[key] = value
+}
 
-    LastQuery() string
-    LastError() error
-    IsConnected() bool
+func (s *memoryStore) Get(key string) (string, error) {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    value, ok := s.values[key]
+    if !ok {
+        return "", fmt.Errorf("key %q not found", key)
+    }
+    return value, nil
 }
 ```
 
-### Implementation
+Create a separate stateful instance for each actor unless shared state is intentional:
 
 ```go
-type databaseAbility struct {
-    db        *sql.DB
-    lastQuery string
-    lastError error
-    dsn       string
-    mutex     sync.RWMutex
+alice := test.ActorCalled("Alice").WhoCan(keystore.InMemory())
+bob := test.ActorCalled("Bob").WhoCan(keystore.InMemory())
+```
+
+`WhoCan` appends abilities; it does not enforce one ability per type. `AbilityOf[T]` returns the first stored ability assignable to `T`. Request the interface itself, not a pointer to it:
+
+```go
+store, err := verity.AbilityOf[keystore.Ability](actor) // correct
+// verity.AbilityOf[*keystore.Ability](actor)           // pointer-to-interface: wrong type
+```
+
+## Add an activity
+
+An activity implements `PerformAs(context.Context, verity.Actor) error`, `Description() string`, and `FailureMode() verity.FailureMode`:
+
+```go title="keystore/activities.go"
+package keystore
+
+import (
+    "context"
+    "fmt"
+
+    verity "github.com/verity-bdd/verity-bdd"
+)
+
+type putActivity struct {
+    key   string
+    value string
 }
 
-func ConnectToPostgreSQL(dsn string) DatabaseAbility {
-    return &databaseAbility{dsn: dsn}
+func Put(key, value string) verity.Activity {
+    return &putActivity{key: key, value: value}
 }
 
-func (d *databaseAbility) Connect(dsn string) error {
-    d.mutex.Lock()
-    defer d.mutex.Unlock()
-
-    if dsn != "" {
-        d.dsn = dsn
-    }
-
-    db, err := sql.Open("postgres", d.dsn)
+func (a *putActivity) PerformAs(_ context.Context, actor verity.Actor) error {
+    store, err := verity.AbilityOf[Ability](actor)
     if err != nil {
-        d.lastError = fmt.Errorf("failed to open database: %w", err)
-        return d.lastError
+        return fmt.Errorf("put value: %w", err)
     }
-
-    if err := db.Ping(); err != nil {
-        d.lastError = fmt.Errorf("failed to ping database: %w", err)
-        db.Close()
-        return d.lastError
-    }
-
-    d.db = db
-    d.lastError = nil
+    store.Put(a.key, a.value)
     return nil
 }
 
-func (d *databaseAbility) Query(query string, args ...interface{}) (*sql.Rows, error) {
-    d.mutex.Lock()
-    defer d.mutex.Unlock()
-
-    if d.db == nil {
-        err := fmt.Errorf("database not connected")
-        d.lastError = err
-        d.lastQuery = query
-        return nil, err
-    }
-
-    d.lastQuery = query
-    rows, err := d.db.Query(query, args...)
-    d.lastError = err
-    return rows, err
+func (a *putActivity) Description() string {
+    return fmt.Sprintf("#actor stores value under %q", a.key)
 }
 
-func (d *databaseAbility) Execute(query string, args ...interface{}) (sql.Result, error) {
-    d.mutex.Lock()
-    defer d.mutex.Unlock()
-
-    if d.db == nil {
-        err := fmt.Errorf("database not connected")
-        d.lastError = err
-        d.lastQuery = query
-        return nil, err
-    }
-
-    d.lastQuery = query
-    result, err := d.db.Exec(query, args...)
-    d.lastError = err
-    return result, err
+func (*putActivity) FailureMode() verity.FailureMode {
+    return verity.Critical()
 }
 ```
 
-### Activities
+`verity.Do` is the shorter option when a named activity type is unnecessary. Its callback also receives the context and actor:
 
 ```go
-type CreateTableActivity struct {
-    tableName string
-    schema    string
-}
-
-func CreateTable(tableName, schema string) *CreateTableActivity {
-    return &CreateTableActivity{tableName: tableName, schema: schema}
-}
-
-func (c *CreateTableActivity) PerformAs(actor core.Actor) error {
-    ability, err := actor.AbilityTo(&databaseAbility{})
+verity.Do("#actor clears the remote cache", func(ctx context.Context, actor verity.Actor) error {
+    cache, err := verity.AbilityOf[CacheAbility](actor)
     if err != nil {
-        return fmt.Errorf("actor does not have database ability: %w", err)
+        return err
     }
-
-    db := ability.(DatabaseAbility)
-    _, err = db.Execute(c.schema)
-    return err
-}
-
-func (c *CreateTableActivity) Description() string {
-    return fmt.Sprintf("creates table: %s", c.tableName)
-}
+    return cache.Clear(ctx)
+})
 ```
 
-### Usage
+## Add a question
 
-```go
-func TestDatabaseOperations(t *testing.T) {
-    test := verity.NewVerityTest(t, verity.Scene{})
+Use `verity.QuestionAbout` for a dynamic value. The callback is evaluated when an assertion asks the question:
 
-    actor := test.ActorCalled("DBAdmin").WhoCan(
-        database.ConnectToPostgreSQL("postgres://user:pass@localhost/testdb?sslmode=disable"),
-    )
+```go title="keystore/questions.go"
+package keystore
 
-    actor.AttemptsTo(
-        core.Do("connects to database", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&databaseAbility{})
-            return ability.(DatabaseAbility).Connect("")
-        }),
-        database.CreateTable("users", `
-            CREATE TABLE users (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `),
-        database.InsertInto("users", map[string]interface{}{
-            "name":  "John Doe",
-            "email": "john@example.com",
-        }),
-        ensure.That(database.RowCount("users"), expectations.Equals(1)),
-    )
-}
-```
+import (
+    "context"
+    "fmt"
 
----
+    verity "github.com/verity-bdd/verity-bdd"
+)
 
-## FileSystem Ability
-
-### Interface
-
-```go
-type FileSystemAbility interface {
-    abilities.Ability
-
-    ReadFile(path string) ([]byte, error)
-    WriteFile(path string, data []byte, perm fs.FileMode) error
-    DeleteFile(path string) error
-    Exists(path string) bool
-
-    CreateDir(path string, perm fs.FileMode) error
-    ListDir(path string) ([]fs.DirEntry, error)
-
-    BackupFile(path string) (string, error)
-    RestoreFile(backupPath string) error
-    GetFileSize(path string) int64
-    GetFileModTime(path string) time.Time
-
-    SetWorkingDirectory(dir string) error
-    GetWorkingDirectory() string
-
-    LastOperation() string
-}
-```
-
-### Implementation
-
-```go
-func ManageFileSystemIn(directory string) FileSystemAbility {
-    abs, _ := filepath.Abs(directory)
-    return &fileSystemAbility{
-        workingDir: abs,
-        backupDir:  filepath.Join(abs, ".backups"),
-        backups:    make(map[string]string),
-    }
-}
-
-func (f *fileSystemAbility) BackupFile(path string) (string, error) {
-    f.mutex.Lock()
-    defer f.mutex.Unlock()
-
-    fullPath := filepath.Join(f.workingDir, path)
-
-    if err := os.MkdirAll(f.backupDir, 0755); err != nil {
-        return "", fmt.Errorf("failed to create backup directory: %w", err)
-    }
-
-    timestamp := time.Now().Format("20060102-150405")
-    backupName := fmt.Sprintf("%s_%s", filepath.Base(path), timestamp)
-    backupPath := filepath.Join(f.backupDir, backupName)
-
-    if err := copyFile(fullPath, backupPath); err != nil {
-        return "", fmt.Errorf("failed to backup file: %w", err)
-    }
-
-    f.backups[path] = backupPath
-    return backupPath, nil
-}
-```
-
-### Usage
-
-```go
-func TestFileSystemWithBackup(t *testing.T) {
-    test := verity.NewVerityTest(t, verity.Scene{})
-    tempDir := t.TempDir()
-
-    actor := test.ActorCalled("FileEditor").WhoCan(
-        filesystem.ManageFileSystemIn(tempDir),
-    )
-
-    actor.AttemptsTo(
-        core.Do("creates original file", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&fileSystemAbility{})
-            return ability.(FileSystemAbility).WriteFile("important.txt", []byte("original content"), 0644)
-        }),
-        filesystem.BackupUpFile("important.txt"),
-        core.Do("modifies file", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&fileSystemAbility{})
-            return ability.(FileSystemAbility).WriteFile("important.txt", []byte("modified content"), 0644)
-        }),
-        ensure.That(filesystem.FileContent("important.txt"), expectations.Equals("modified content")),
-        filesystem.RestoreLastBackup("important.txt"),
-        ensure.That(filesystem.FileContent("important.txt"), expectations.Equals("original content")),
-    )
-}
-```
-
----
-
-## WebSocket Ability
-
-### Interface
-
-```go
-type WebSocketAbility interface {
-    abilities.Ability
-
-    Connect(url string, header http.Header) error
-    Disconnect() error
-    IsConnected() bool
-
-    Send(message []byte) error
-    SendJSON(v interface{}) error
-    Receive(timeout time.Duration) ([]byte, error)
-    ReceiveJSON(v interface{}, timeout time.Duration) error
-
-    LastMessage() []byte
-    ConnectionDuration() time.Duration
-    MessageCount() int
-}
-```
-
-### Usage
-
-```go
-func TestWebSocketChat(t *testing.T) {
-    // Start a test WebSocket echo server
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        upgrader := websocket.Upgrader{}
-        conn, _ := upgrader.Upgrade(w, r, nil)
-        defer conn.Close()
-
-        for {
-            messageType, message, err := conn.ReadMessage()
+func Value(key string) verity.Question[string] {
+    return verity.QuestionAbout(
+        fmt.Sprintf("value stored under %q", key),
+        func(_ context.Context, actor verity.Actor) (string, error) {
+            store, err := verity.AbilityOf[Ability](actor)
             if err != nil {
-                break
+                return "", fmt.Errorf("read value: %w", err)
             }
-            conn.WriteMessage(messageType, message)
-        }
-    }))
-    defer server.Close()
-
-    wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
-
-    actor := test.ActorCalled("WebSocketClient").WhoCan(
-        websocket.ConnectToWebSocket(),
-    )
-
-    actor.AttemptsTo(
-        core.Do("connects to websocket", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&webSocketAbility{})
-            return ability.(WebSocketAbility).Connect(wsURL, nil)
-        }),
-        core.Do("sends message", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&webSocketAbility{})
-            return ability.(WebSocketAbility).Send([]byte("Hello WebSocket!"))
-        }),
-        core.Do("receives response", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&webSocketAbility{})
-            _, err := ability.(WebSocketAbility).Receive(5 * time.Second)
-            return err
-        }),
-        ensure.That(websocket.LastMessage(), expectations.Equals([]byte("Hello WebSocket!"))),
+            return store.Get(key)
+        },
     )
 }
 ```
 
----
+Use `verity_answerable.ValueOf(value)` only for an already-known static value. It does not create dynamic ability-backed questions.
 
-## Redis Ability
+## Use the ability
 
-### Interface
+```go title="keystore_test.go"
+package keystore_test
 
-```go
-type RedisAbility interface {
-    abilities.Ability
+import (
+    "testing"
 
-    Connect(addr string, options *redis.Options) error
-    Disconnect() error
-    Ping() error
+    verity "github.com/verity-bdd/verity-bdd"
+    expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
+    "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 
-    Set(key string, value interface{}, expiration time.Duration) error
-    Get(key string) (string, error)
-    Del(keys ...string) error
-    Exists(keys ...string) (int64, error)
+    "myproject/keystore"
+)
 
-    HSet(key string, values ...interface{}) error
-    HGet(key, field string) (string, error)
-    HGetAll(key string) (map[string]string, error)
-
-    LPush(key string, values ...interface{}) error
-    RPop(key string) (string, error)
-    LRange(key string, start, stop int64) ([]string, error)
-}
-```
-
-### Usage
-
-```go
-func TestRedisOperations(t *testing.T) {
+func TestStoreValue(t *testing.T) {
     test := verity.NewVerityTest(t, verity.Scene{})
-
-    actor := test.ActorCalled("RedisUser").WhoCan(
-        redis.ConnectToRedis("localhost:6379"),
-    )
+    actor := test.ActorCalled("Alice").WhoCan(keystore.InMemory())
 
     actor.AttemptsTo(
-        core.Do("sets key-value", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&redisAbility{})
-            return ability.(RedisAbility).Set("test:key", "test-value", 0)
-        }),
-        ensure.That(redis.KeyExists("test:key"), expectations.IsTrue()),
-        ensure.That(redis.StringValue("test:key"), expectations.Equals("test-value")),
-        core.Do("deletes key", func(actor core.Actor) error {
-            ability, _ := actor.AbilityTo(&redisAbility{})
-            return ability.(RedisAbility).Del("test:key")
-        }),
-        ensure.That(redis.KeyExists("test:key"), expectations.IsFalse()),
+        keystore.Put("status", "ready"),
+        ensure.That(keystore.Value("status"), expectations.Equals("ready")),
+        ensure.That(keystore.Value("status"), expectations.ContainsSubstring("read")),
     )
 }
 ```
+
+`NewVerityTest` registers cleanup with the supplied `TestContext`, so an ordinary Go test does not need to call `Shutdown` manually.
+
+## Failure modes
+
+Every activity chooses its failure behavior through `FailureMode()`:
+
+| Return value | Behavior in `AttemptsTo` |
+|---|---|
+| `verity.Critical()` (or `verity.FailFast`) | Report the error, call `FailNow`, and stop the sequence |
+| `verity.NonCritical()` (or `verity.ErrorButContinue`) | Report the error with `Errorf` and continue |
+| `verity.Optional()` (or `verity.Ignore`) | Log the ignored error and continue |
+
+The semantic functions return failure-mode values; they are not fluent modifiers. For example, a custom best-effort cleanup activity can return `verity.Optional()` from its `FailureMode` method. `verity.Do` and built-in request activities are fail-fast, while a plain `ensure.That` is non-critical and `.After(...)` is fail-fast.
+
+Choose the mode in the activity implementation rather than expecting `AttemptsTo` to return an error: `AttemptsTo` returns no value and reports failures through the test's `TestContext`.

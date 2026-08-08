@@ -25,7 +25,7 @@ type Post struct {
 
 func PublishPost(post Post) verity.Activity {
     return verity.TaskWhere("#actor publishes a post",
-        api.SendPostRequest("/posts").With(post),
+        api.SendPostRequest("/posts").WithBody(post),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
     )
 }

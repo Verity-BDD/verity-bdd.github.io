@@ -19,7 +19,7 @@ func TestProductCatalogue(t *testing.T) {
     )
 
     manager.AttemptsTo(
-        api.SendPostRequest("/products").With(map[string]any{
+        api.SendPostRequest("/products").WithBody(map[string]any{
             "name": "Apples", "price": "£2.50",
         }),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
@@ -28,7 +28,7 @@ func TestProductCatalogue(t *testing.T) {
     customer.AttemptsTo(
         api.SendGetRequest("/products"),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
-        ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
+        ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("Apples")),
     )
 }
 ```

@@ -21,22 +21,27 @@ actor := test.ActorCalled("Auditor").WhoCan(ManageFilesIn(t.TempDir()))
 // Use typed interactions and questions
 actor.AttemptsTo(
     WriteFile("report.txt", "audit passed"),
-    ensure.That(FileContent("report.txt"), expectations.Contains("audit")),
+    ensure.That(FileContent("report.txt"), expectations.ContainsSubstring("audit")),
     ensure.That(FileExists("report.txt"), expectations.Equals(true)),
 )
 ```
 
-In this case `ManageFilesIn(t.TempDir())` returns a specific implementation of `verity.Ability`. Let's dive into what that is.
+In this case `ManageFilesIn(t.TempDir())` returns a domain-specific ability interface. Let's build it.
 
 ## Step 1 — Define the interface
 
-An ability is a Go interface that embeds `verity.Ability`.
+`verity.Ability` is currently an empty interface, so every Go type already satisfies it. Defining a narrower domain interface gives activities and questions a useful typed contract. Embedding `verity.Ability` is an optional marker convention:
 Define the operations the ability exposes to interactions and questions:
 
 ```go title="filesystem/ability.go"
 package filesystem
 
 import (
+    "fmt"
+    "os"
+    "path/filepath"
+    "sync"
+
     verity "github.com/verity-bdd/verity-bdd"
 )
 
@@ -51,7 +56,7 @@ type FileSystemAbility interface {
 }
 ```
 
-The only requirement is embedding `verity.Ability`. Everything else is your domain.
+The operations are your domain contract; the embedded marker does not add methods or enforce conformance.
 
 ## Step 2 — Implement the ability
 
@@ -59,13 +64,6 @@ Create a private struct that holds the ability's state and implements the interf
 Use a mutex to make it safe for concurrent use:
 
 ```go title="filesystem/ability.go"
-import (
-    "fmt"
-    "os"
-    "path/filepath"
-    "sync"
-)
-
 type fileSystemAbility struct {
     workingDir string
     mutex      sync.RWMutex
@@ -176,7 +174,7 @@ func (w *WriteFileActivity) FailureMode() verity.FailureMode {
 The critical line is `actor.AbilityTo(&fileSystemAbility{})`:
 **Verity BDD** matches the ability by its concrete type, so pass a zero-value pointer to your private struct.
 
-There's also an easier alterntive way to get abilities, whihc is used in the following example: `verity.AbilityOf[FileSystemAbility](actor)`.
+The simpler alternative is `verity.AbilityOf[FileSystemAbility](actor)`, used below. Request the interface itself, not `*FileSystemAbility` (a pointer to an interface).
 
 Add activities for the other operations the same way:
 
@@ -295,7 +293,7 @@ func TestAuditReport(t *testing.T) {
     auditor.AttemptsTo(
         filesystem.WriteFile("report.txt", "audit passed"),
         ensure.That(filesystem.FileExists("report.txt"), expectations.Equals(true)),
-        ensure.That(filesystem.FileContent("report.txt"), expectations.Contains("audit")),
+        ensure.That(filesystem.FileContent("report.txt"), expectations.ContainsSubstring("audit")),
         filesystem.DeleteFile("report.txt"),
         ensure.That(filesystem.FileExists("report.txt"), expectations.Equals(false)),
     )
@@ -320,7 +318,7 @@ body, _ := api.LastResponseBody{}.AnsweredBy(ctx, actor)
 
 actor.AttemptsTo(
     filesystem.WriteFile("response.json", body),
-    ensure.That(filesystem.FileContent("response.json"), expectations.Contains("status")),
+    ensure.That(filesystem.FileContent("response.json"), expectations.ContainsSubstring("status")),
 )
 ```
 
@@ -328,10 +326,10 @@ actor.AttemptsTo(
 
 | Piece | What to implement |
 |---|---|
-| **Ability interface** | Embed `verity.Ability`, declare your operations |
+| **Ability interface** | Declare the operations activities and questions need; embedding `verity.Ability` is optional |
 | **Private struct** | Hold state, use `sync.RWMutex`, implement the interface |
 | **Constructor** | Return the interface type, not the struct pointer |
 | **Activity** | `PerformAs`, `Description`, `FailureMode` — retrieve via `actor.AbilityTo(&yourStruct{})` |
 | **Question** | `AnsweredBy`, `Description` — same retrieval pattern |
 
-For more examples (PostgreSQL, Redis, WebSocket), see [Ability Examples](/en/examples/abilities/).
+For another complete, focused implementation using `QuestionAbout` and `AbilityOf`, see [Ability Examples](/en/examples/abilities/).

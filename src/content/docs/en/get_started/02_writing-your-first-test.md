@@ -35,7 +35,7 @@ The base URL is stored in the ability — individual interactions only specify t
 
 ```go
 author.AttemptsTo(
-    api.SendPostRequest("/posts").With(map[string]any{ ... }),
+    api.SendPostRequest("/posts").WithBody(map[string]any{ ... }),
     ...
 )
 ```
@@ -46,22 +46,23 @@ Available HTTP interactions:
 
 ```go
 api.SendGetRequest("/path")
-api.SendPostRequest("/path").With(body)
-api.SendPutRequest("/path").With(body)
+api.SendPostRequest("/path").WithBody(body)
+api.SendPutRequest("/path").WithBody(body)
+api.SendPatchRequest("/path").WithBody(body)
 api.SendDeleteRequest("/path")
 
 // Add headers to any request:
 api.SendGetRequest("/path").WithHeader("Authorization", "Bearer token")
 api.SendPostRequest("/path").
     WithHeader("X-Request-ID", "123").
-    With(body)
+    WithBody(body)
 ```
 
 ### 4. Assert with questions and expectations
 
 ```go
 ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
-ensure.That(api.LastResponseBody{}, expectations.Contains("My First Post")),
+ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("My First Post")),
 ```
 
 `ensure.That` takes a **question** (something to retrieve) and an **expectation** (the condition to check).
@@ -72,10 +73,33 @@ Built-in API questions:
 api.LastResponseStatus{}                // HTTP status code (int)
 api.LastResponseBody{}                  // Response body (string)
 api.NewResponseHeader("content-type")   // Response header value (string)
-api.NewJSONPath("data.user.name")       // JSONPath expression result (string)
-api.ResponseTime{}                      // Response time in milliseconds (int64)
-api.NewResponseBodyAsJSON[T]()          // Deserialise body into struct T
+api.NewJSONPath("data.user.name")       // JSONPath result (any)
+api.LastResponseBodyAsJSON[T]()          // Deserialise body into T
 ```
+
+`NewJSONPath` uses dot-separated object keys and numeric array indexes. A `*` array segment returns `[]any`; JSON numbers decode with the standard `encoding/json` representation (normally `float64`). The prebuilt `api.LastResponseStatusQ` and `api.LastResponseBodyQ` are equivalent to the empty struct questions above.
+
+`api.ResponseTime{}` and the equivalent `api.ResponseTimeQ` currently always answer `0`; request timing is not implemented yet, so do not use either for performance assertions.
+
+### Advanced request entry points
+
+Use `api.Using(client)` when the actor needs a configured `*http.Client` (for example, custom transport, cookies, redirects, or timeouts). Because it has no base URL, send absolute request URLs:
+
+```go
+client := &http.Client{Timeout: 10 * time.Second}
+author := test.ActorCalled("Author").WhoCan(api.Using(client))
+
+request, err := api.NewRequestBuilder(http.MethodGet, "https://api.example.org/posts").
+    WithHeader("Accept", "application/json").
+    Build()
+if err != nil {
+    t.Fatal(err)
+}
+
+author.AttemptsTo(api.SendRequest(request))
+```
+
+`NewRequestBuilder` also supports `WithHeaders`, `WithBody(io.Reader)`, `With(data)`, and `WithJSONBody(data)`. `WithJSONBody` returns an error; `With` is fluent and attempts JSON encoding for other values. You can also build a standard `*http.Request` directly and pass it to `SendRequest`.
 
 ## The complete test
 
@@ -99,13 +123,13 @@ func TestCreatePost(t *testing.T) {
     )
 
     author.AttemptsTo(
-        api.SendPostRequest("/posts").With(map[string]any{
+        api.SendPostRequest("/posts").WithBody(map[string]any{
             "title":  "My First Post",
             "body":   "Hello from Verity BDD",
             "userId": 1,
         }),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
-        ensure.That(api.LastResponseBody{}, expectations.Contains("My First Post")),
+        ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("My First Post")),
     )
 }
 ```
@@ -123,13 +147,12 @@ By default, Verity BDD prints a step-by-step execution log to the console:
 
 ```
 🚀 Starting: TestCreatePost
-  🔄 Author sends POST request to /posts
   ✅ Author sends POST request to /posts (0.18s)
-  🔄 Ensures that the last response status code equals 201
-  ✅ Ensures that the last response status code equals 201 (0.00s)
-  🔄 Ensures that the last response body contains "My First Post"
-  ✅ Ensures that the last response body contains "My First Post" (0.00s)
+  ✅ Author ensures that the last response status code equals 201 (0.00s)
+  ✅ Author ensures that the last response body contains 'My First Post' (0.00s)
 ✅ TestCreatePost: PASSED (0.19s)
 ```
+
+`OnStepStart` tracks the active step but does not print a start line; the console reporter writes each step only when it finishes. Durations vary by run.
 
 For Allure reporting, see the [Reporting guide](/en/get_started/20_reporting/).

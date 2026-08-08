@@ -191,8 +191,8 @@ After the test runs, `test-report.md` contains:
 
 ## Attachments
 
-Reporters receive attachments via `result.Attachments()` in `OnTestFinish` and `OnStepFinish`. Each `Attachment` carries a `Name string`, `ContentType string`, and `Content []byte` (a serialised payload such as JSON).
+Both result callbacks expose `result.Attachments()`, whose `Attachment` values carry a `Name string`, `ContentType string`, and `Content []byte`. In the current public pipeline, only `OnTestFinish` receives produced attachments: a non-empty `take_notes` notebook becomes one test-level `"notes"` JSON attachment. Step results currently have no attachments.
 
 The `MarkdownReporter` tutorial above counts attachments and points to the dedicated guide. The built-in `ConsoleReporter` prints attachment content inline; `AllureReporter` persists each as a separate file alongside the JSON result.
 
-For how activities *produce* attachments during execution, see the [Attachments guide](/en/guides/21_attachments/).
+See the [Attachments guide](/en/guides/21_attachments/) for the current limitations and rendering example.
