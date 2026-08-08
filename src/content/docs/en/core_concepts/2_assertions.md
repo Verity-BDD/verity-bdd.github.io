@@ -7,7 +7,7 @@ sidebar:
 
 ## Assertions and expectations
 
-Verity BDD helps you model your test scenarios from the perspective of [actors](/api/core/class/Actor) performing [activities](/api/core/class/Activity) to accomplish their goals.
+Verity BDD helps you model test scenarios from the perspective of [actors performing activities](/en/core_concepts/1_screenplay/#actors) to accomplish their goals.
 Assertions follow this same consistent approach, expressed using the `ensure.That` activity.
 
 ### The anatomy of a Verity BDD assertion
@@ -25,7 +25,7 @@ import (
 )
 
 actor.AttemptsTo(
-    ensure.That(answerable.ValueOf("Hello world"), expectations.Contains("Hello")),
+    ensure.That(answerable.ValueOf("Hello world"), expectations.ContainsSubstring("Hello")),
     //          actual value ----^                  ^---- expectation
 )
 ```
@@ -34,13 +34,14 @@ The available built-in expectations are:
 
 | Expectation | Description |
 |---|---|
-| `expectations.Equals(expected)` | Value equals expected (generic, works with any comparable type) |
-| `expectations.Contains(substr)` | String contains substring, or map contains key |
+| `expectations.Equals(expected)` | Any value deeply equals `expected` (`reflect.DeepEqual`) |
+| `expectations.ContainsSubstring(substr)` | String contains `substr` |
 | `expectations.ContainsKey(key)` | Map contains the given key |
+| `expectations.Includes(value)` | Slice contains an element deeply equal to `value` |
 | `expectations.IsGreaterThan(n)` | Numeric value is greater than `n` |
 | `expectations.IsLessThan(n)` | Numeric value is less than `n` |
-| `expectations.IsEmpty[T]()` | Value is empty (zero value, empty string/slice/map) |
-| `expectations.ArrayLengthEquals[T](n)` | Slice has exactly `n` elements |
+| `expectations.IsEmpty[T]()` | String, slice, array, or map has length zero |
+| `expectations.ArrayLengthEquals[T](n)` | Array, slice, or string has length `n` |
 | `expectations.Not(inner)` | Negates any expectation |
 | `expectations.Satisfies(desc, fn)` | Custom expectation via a validation function |
 
@@ -59,7 +60,7 @@ import (
 
 actor.AttemptsTo(
     ensure.That(answerable.ValueOf(42), expectations.Equals(42)),
-    ensure.That(answerable.ValueOf("hello@example.com"), expectations.Contains("@")),
+    ensure.That(answerable.ValueOf("hello@example.com"), expectations.ContainsSubstring("@")),
     ensure.That(answerable.ValueOf(true), expectations.Equals(true)),
 )
 ```
@@ -76,7 +77,7 @@ import (
 apisitt.AttemptsTo(
     api.SendGetRequest("/products"),
     ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
-    ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
+    ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("Apples")),
 )
 ```
 
@@ -133,7 +134,7 @@ import (
     "fmt"
     "strings"
 
-    answerable "github.comchursin/verity-bdd/verity_answerable"
+    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
     expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
     "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
@@ -235,7 +236,7 @@ Use `expectations.Not` to negate any expectation:
 ```go
 actor.AttemptsTo(
     ensure.That(api.LastResponseStatus{}, expectations.Not(expectations.Equals(404))),
-    ensure.That(api.LastResponseBody{}, expectations.Not(expectations.Contains("error"))),
+    ensure.That(api.LastResponseBody{}, expectations.Not(expectations.ContainsSubstring("error"))),
 )
 ```
 
@@ -248,10 +249,10 @@ retrieved dynamically at assertion time:
 import (
     "context"
     "encoding/json"
+    "fmt"
 
     verity "github.com/verity-bdd/verity-bdd"
     "github.com/verity-bdd/verity-bdd/verity_abilities/api"
-    answerable "github.com/verity-bdd/verity-bdd/verity_answerable"
     expectations "github.com/verity-bdd/verity-bdd/verity_expectations"
     "github.com/verity-bdd/verity-bdd/verity_expectations/ensure"
 )
@@ -262,7 +263,7 @@ type Product struct {
 }
 
 func FirstProductName() verity.Question[string] {
-    return answerable.ResultOf("name of the first product", func(ctx context.Context, actor verity.Actor) (string, error) {
+    return verity.QuestionAbout("name of the first product", func(ctx context.Context, actor verity.Actor) (string, error) {
         body, err := api.LastResponseBody{}.AnsweredBy(ctx, actor)
         if err != nil {
             return "", err
@@ -278,9 +279,62 @@ func FirstProductName() verity.Question[string] {
     })
 }
 
-// Use it in an assertion:
-apisitt.AttemptsTo(
-    api.SendGetRequest("/products"),
-    ensure.That(FirstProductName(), expectations.Equals("Apples")),
+// AssertFirstProductIsApples shows the question at a complete call site.
+func AssertFirstProductIsApples(apisitt verity.Actor) {
+    apisitt.AttemptsTo(
+        api.SendGetRequest("/products"),
+        ensure.That(FirstProductName(), expectations.Equals("Apples")),
+    )
+}
+```
+
+### Delayed and polling assertions
+
+`ensure.That(question, expectation).After(duration)` waits once, then answers the question and evaluates the expectation once. It is a deliberate delay, not a polling mechanism:
+
+```go
+actor.AttemptsTo(
+    ensure.That(Status(), expectations.Equals("ready")).After(2*time.Second),
 )
 ```
+
+The delayed activity is fail-fast. Cancellation of the actor's context interrupts the delay.
+
+For polling, use `wait.Until`. It checks immediately, then repeats until the expectation passes, the context is cancelled, or the timeout expires. Defaults are a 5-second timeout and a 500-millisecond interval:
+
+```go
+import "github.com/verity-bdd/verity-bdd/verity_abilities/wait"
+
+actor.AttemptsTo(
+    wait.Until(Status(), expectations.Equals("ready")).
+        For(30*time.Second).
+        CheckingEvery(time.Second),
+)
+```
+
+`wait.UntilReceived(events).For(10*time.Second)` instead waits for one value from a receive-only channel. It fails if the channel closes before a value arrives, the timeout expires, or the context is cancelled. Both wait activities are fail-fast.
+
+### Expectations whose expected value is a question
+
+Dynamic expectation factories resolve another question while evaluating the actual answer:
+
+```go
+actor.AttemptsTo(
+    ensure.That(CurrentUserName(), expectations.EqualsAnswerTo(ExpectedUserName())),
+    ensure.That(ResponseText(), expectations.ContainsSubstringAnswerTo(SearchTerm())),
+    ensure.That(ResponseMap(), expectations.ContainsKeyAnswerTo(RequiredKey())),
+    ensure.That(Items(), expectations.ArrayLengthEqualsAnswerTo[[]Item](ExpectedCount())),
+)
+```
+
+The complete set is `EqualsAnswerTo`, `ContainsSubstringAnswerTo`, `ContainsKeyAnswerTo`, `ArrayLengthEqualsAnswerTo`, `IsGreaterThanAnswerTo`, and `IsLessThanAnswerTo`. The numeric variants use `Question[any]` because they accept the supported numeric types. `SatisfiesAnswer` is the custom form; its callback receives `context.Context`, the current `verity.Actor`, and the actual value:
+
+```go
+expectations.SatisfiesAnswer("is visible to the current actor",
+    func(ctx context.Context, actor verity.Actor, actual Resource) error {
+        return checkVisibility(ctx, actor, actual)
+    },
+)
+```
+
+The expected-value question is answered each time the expectation is evaluated. This matters inside `wait.Until`, where both sides can change on every poll. If resolving the expected question fails, the assertion reports that question-resolution error rather than treating it as a normal mismatch.

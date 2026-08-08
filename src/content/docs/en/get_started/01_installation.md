@@ -11,7 +11,7 @@ sidebar:
 
 ## Prerequisites
 
-Verity BDD requires **Go 1.23 or later**.
+Verity BDD requires **Go 1.23.4 or later**.
 
 If you don't have Go installed, follow the official installation guide at [go.dev/doc/install](https://go.dev/doc/install).
 
@@ -19,7 +19,7 @@ To verify your installation:
 
 ```bash
 go version
-# go version go1.23.0 darwin/arm64
+# go version go1.23.4 darwin/arm64
 ```
 
 ## Create a new Go project
@@ -56,10 +56,13 @@ go get github.com/verity-bdd/verity-bdd
 | Package | Description |
 |---|---|
 | `github.com/verity-bdd/verity-bdd` | Core Screenplay API: actors, tasks, interactions, questions |
-| `verity_abilities/api` | HTTP API ability and built-in interactions |
-| `verity_answerable` | Helpers for wrapping static and dynamic values as questions |
-| `verity_expectations` | Built-in expectations (`Equals`, `Contains`, `Satisfies`, …) |
+| `verity_abilities/api` | HTTP API ability, request activities, and response questions |
+| `verity_abilities/take_notes` | Typed state shared between an actor's steps |
+| `verity_abilities/wait` | Polling and channel-wait activities |
+| `verity_answerable` | `ValueOf`, for wrapping a static value as a question |
+| `verity_expectations` | Built-in expectations (`Equals`, `ContainsSubstring`, `ContainsKey`, `Satisfies`, …) |
 | `verity_expectations/ensure` | `ensure.That` assertion activity |
+| `verity_reporting` | Reporter, result, status, and attachment contracts |
 | `verity_reporting/console_reporter` | Console reporter (included by default) |
 | `verity_reporting/allure_reporter` | Allure reporter for CI reporting |
 

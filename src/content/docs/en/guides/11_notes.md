@@ -6,14 +6,14 @@ sidebar:
 ---
 
 There are 2 basic ways to share some data between steps:
-1. Each actor has it's own instance for each ability, which means every ability carries over it's state between steps.
-2. `take_notes` module, which is a basic ability to write some data to use between steps.
+1. Each actor has its own ability instances, so an ability can carry state between that actor's steps.
+2. The `take_notes` package provides a built-in ability for storing values between steps.
 
 ## Ability state
-Whenever you assign an ability to an actor, a new instance should be created. This way each actor only uses it's own private ability. This in turn gives you an opportunity to share some data and state between the steps.  Simple assign ability field to some value and use it normally.
+Create a separate stateful ability instance for each actor. Activities and questions can then update and read that instance between steps without sharing it with other actors.
 
 ## `TakeNotes` ability
-The `TakeNotes` ability basically uses the same mechanism, but it's built into the way framework works. It lets an actor store and retrieve typed values during a test — useful for passing data between steps without shared variables. And in the end all notes are attached to the test reports.
+The `TakeNotes` ability uses the same mechanism but is integrated with the framework. It lets an actor store and retrieve typed values during a test. Non-empty notes are serialised into one test-level `"notes"` attachment when the test shuts down.
 
 ```go
 package examples
@@ -33,9 +33,9 @@ func TestNotesExample(t *testing.T) {
         take_notes.TakeNoteOf("Bearer abc123").As("auth token"),
     )
 
-    token, ok := take_notes.Note[string]("auth token").AnsweredBy(actor)
-    if !ok {
-        t.Fatalf("note not found")
+    token, err := take_notes.Note[string]("auth token").AnsweredBy(test.Context(), actor)
+    if err != nil {
+        t.Fatal(err)
     }
     if token != "Bearer abc123" {
         t.Fatalf("unexpected token: %s", token)

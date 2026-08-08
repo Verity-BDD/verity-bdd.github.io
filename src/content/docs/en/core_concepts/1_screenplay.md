@@ -64,8 +64,8 @@ and a web storefront that lets customers find the products they need and make a 
 
 We'll create a test scenario that uses two actors: one to set up the test data via the REST API, and one to verify the results.
 
-:::tip[Verity BDD Project Templates]
-To follow along with the coding, get one of the [**Verity BDD Project Templates**](/handbook/project-templates/) as they come with everything you need to get started with Verity BDD.
+:::tip[Follow along]
+Start with the [installation guide](/en/get_started/01_installation/), then adapt the examples below in a normal Go test file.
 :::
 
 #### Actors
@@ -95,14 +95,13 @@ With Verity BDD, you instantiate actors via the `VerityTest` context created at 
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     test.ActorCalled("Apisitt") // Actor{name: "Apisitt"}
     test.ActorCalled("Wendy")   // Actor{name: "Wendy"}
@@ -116,7 +115,7 @@ This way, whenever you call `test.ActorCalled("Wendy")` **within the same test**
 
 ```go title="online_shop_test.go"
 func TestActorIdentity(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     wendy1 := test.ActorCalled("Wendy") // first call — actor created
     wendy2 := test.ActorCalled("Wendy") // second call — same instance returned
@@ -135,7 +134,7 @@ const (
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     test.ActorCalled(actorApisitt) // Actor{name: "Apisitt, the test data manager"}
     test.ActorCalled(actorWendy)   // Actor{name: "Wendy, the customer"}
@@ -149,15 +148,13 @@ you'll typically use it with Go's standard `testing` package:
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
-    "github.com/verity-bdd/verity-bdd/verity_abilities/api"
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     test.ActorCalled("Apisitt") // Actor{name: "Apisitt"}
     test.ActorCalled("Wendy")   // Actor{name: "Wendy"}
@@ -192,16 +189,14 @@ func TestOnlineShop(t *testing.T) {
 To retrieve an actor's ability, use `verity.AbilityOf[T]`:
 
 ```go title="online_shop_test.go"
-ability, err := verity.AbilityOf[*api.CallAnAPI](apisitt)
+ability, err := verity.AbilityOf[api.CallAnAPI](apisitt)
 if err != nil {
     t.Fatalf("actor lacks API ability: %v", err)
 }
 _ = ability
 ```
 
-Learn more about:
-- [Abilities](#abilities)
-- [API testing](/guides/1_getting-started/)
+Learn more about [abilities](#abilities) and [writing an API test](/en/get_started/02_writing-your-first-test/).
 
 #### Abilities
 
@@ -222,7 +217,6 @@ To allow Apisitt to interact with a REST API, we give him the ability to `CallAn
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
@@ -230,7 +224,7 @@ import (
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     apisitt := test.ActorCalled("Apisitt").
         WhoCan(api.CallAnApiAt("https://api.example.org/"))
@@ -243,9 +237,7 @@ func TestOnlineShop(t *testing.T) {
 }
 ```
 
-Learn more about:
-- [Abilities](/api/core/class/Ability)
-- [API testing](/guides/1_getting-started/)
+Learn more in [Creating Custom Abilities](/en/get_started/10_abilities/) and [Writing Your First Test](/en/get_started/02_writing-your-first-test/).
 
 #### Interactions
 
@@ -260,7 +252,6 @@ Here, we instruct Apisitt to use `api.SendPostRequest` to set up some test data 
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
@@ -273,13 +264,13 @@ type Product struct {
 }
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     apisitt := test.ActorCalled("Apisitt").
         WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
     apisitt.AttemptsTo(                        // actor attempts to perform interactions
-        api.SendPostRequest("/products").With(  // interactions are command objects
+        api.SendPostRequest("/products").WithBody(  // interactions are command objects
             []Product{                         // that instruct actors how to use abilities
                 {Name: "Apples", Price: "£2.50"},
             },
@@ -314,7 +305,7 @@ func GetProducts() verity.Activity {
     return verity.Do(
         "#actor retrieves the product catalogue",
         func(ctx context.Context, actor verity.Actor) error {
-            ability, err := verity.AbilityOf[*api.CallAnAPI](actor)
+            ability, err := verity.AbilityOf[api.CallAnAPI](actor)
             if err != nil {
                 return fmt.Errorf("actor needs API ability: %w", err)
             }
@@ -326,9 +317,7 @@ func GetProducts() verity.Activity {
 }
 ```
 
-Learn more about:
-- [Actors](/api/core/class/Actor)
-- [Interactions](/api/core/class/Interaction)
+See the public [`Actor`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Actor) and [`Interaction`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Interaction) contracts.
 
 #### Questions
 
@@ -341,7 +330,6 @@ To assert on it, we use `api.LastResponseStatus{}` — a question about the HTTP
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
@@ -351,13 +339,13 @@ import (
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     apisitt := test.ActorCalled("Apisitt").
         WhoCan(api.CallAnApiAt("https://api.example.org/"))
 
     apisitt.AttemptsTo(
-        api.SendPostRequest("/products").With([]Product{
+        api.SendPostRequest("/products").WithBody([]Product{
             {Name: "Apples", Price: "£2.50"},
         }),
         ensure.That(
@@ -373,7 +361,7 @@ no matter what ability an actor uses, the way they answer questions and assert o
 
 ```go title="online_shop_test.go"
 apisitt.AttemptsTo(
-    api.SendPostRequest("/products").With([]Product{
+    api.SendPostRequest("/products").WithBody([]Product{
         {Name: "Apples", Price: "£2.50"},
     }),
     ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
@@ -382,13 +370,11 @@ apisitt.AttemptsTo(
 wendy.AttemptsTo(
     api.SendGetRequest("/products"),
     ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
-    ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
+    ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("Apples")),
 )
 ```
 
-Learn more about:
-- [Questions](/api/core/class/Question)
-- [Assertions and expectations](/handbook/design/assertions)
+Learn more about [`Question`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Question) and [assertions and expectations](/en/core_concepts/2_assertions/).
 
 #### Tasks
 
@@ -415,7 +401,7 @@ type Product struct {
 
 func SetupProductCatalogue(products []Product) verity.Activity {
     return verity.TaskWhere("#actor sets up the product catalogue",
-        api.SendPostRequest("/products").With(products),
+        api.SendPostRequest("/products").WithBody(products),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(201)),
     )
 }
@@ -424,7 +410,7 @@ func VerifyProductCatalogue() verity.Activity {
     return verity.TaskWhere("#actor verifies the product catalogue",
         api.SendGetRequest("/products"),
         ensure.That(api.LastResponseStatus{}, expectations.Equals(200)),
-        ensure.That(api.LastResponseBody{}, expectations.Contains("Apples")),
+        ensure.That(api.LastResponseBody{}, expectations.ContainsSubstring("Apples")),
     )
 }
 ```
@@ -434,7 +420,6 @@ Tasks help you capture the domain language, provide a consistent way to structur
 
 ```go title="online_shop_test.go"
 import (
-    "context"
     "testing"
 
     verity "github.com/verity-bdd/verity-bdd"
@@ -442,7 +427,7 @@ import (
 )
 
 func TestOnlineShop(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     apisitt := test.ActorCalled("Apisitt").
         WhoCan(api.CallAnApiAt("https://api.example.org/"))
@@ -462,9 +447,7 @@ func TestOnlineShop(t *testing.T) {
 }
 ```
 
-Learn more about:
-- [Actors](/api/core/class/Actor)
-- [Tasks](/api/core/class/Task)
+See the public [`Actor`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Actor) and [`Task`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Task) contracts.
 
 ### Performing activities at multiple levels
 
@@ -478,7 +461,7 @@ For example, we might have an acceptance test that demonstrates how the system u
 
 ```go title="flight_booking_test.go"
 func TestFlightBooking(t *testing.T) {
-    test := verity.NewVerityTest(ctx, verity.Scene{})
+    test := verity.NewVerityTest(t, verity.Scene{})
 
     trevor := test.ActorCalled("Trevor").
         WhoCan(api.CallAnApiAt("https://api.airline.org/"))
@@ -509,19 +492,14 @@ Feature: Serenity Airlines flight booking                                       
 In this case, each step definition is mapped to a Verity BDD actor performing one or more activities:
 
 ```go title="flight_booking_steps_test.go"
-import (
-    "github.com/cucumber/godog"
-    verity "github.com/verity-bdd/verity-bdd"
-)
-
-func (s *suite) TrevorFindsAFlight(origin, destination string) error {
-    return s.trevor.AttemptsTo(
+func (s *suite) TrevorFindsAFlight(origin, destination string) {
+    s.trevor.AttemptsTo(
         FindFlight(origin, destination),     // step goal maps to activities
     )
 }
 
-func (s *suite) HeChoosesFlightClass(class string) error {
-    return s.trevor.AttemptsTo(
+func (s *suite) HeChoosesFlightClass(class string) {
+    s.trevor.AttemptsTo(
         ChooseFlightClass(class),
     )
 }
@@ -586,13 +564,7 @@ and making _activities_ the primary component of code reuse in Verity BDD.
 ### Start with Verity BDD Screenplay Pattern
 
 The easiest way to **experience** working with Verity BDD and the Screenplay Pattern is
-to **follow the getting started guide** and write your [**first API scenario**](/en/guides/1_getting-started/)!
-
-<!-- :::tip[Try Verity BDD in your browser] -->
-<!-- Thanks to [GitHub Codespaces](/handbook/project-templates/#serenityjs-codespaces), -->
-<!-- you can follow the tutorial and use any of the [Verity BDD Project Templates](/handbook/project-templates/) right here in your browser, -->
-<!-- no local installation required! -->
-<!-- ::: -->
+to **follow the getting started guide** and write your [**first API scenario**](/en/get_started/02_writing-your-first-test/)!
 
 ### History of the Screenplay Pattern
 

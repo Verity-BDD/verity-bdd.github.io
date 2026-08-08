@@ -19,7 +19,7 @@ The only built-in source today is the [`take_notes` ability](/en/guides/11_notes
 
 ## Receiving attachments in a reporter
 
-Attachments arrive through `result.Attachments()` — available in both `OnTestFinish` and `OnStepFinish` callbacks:
+Reporters can inspect `result.Attachments()` in either result callback, but the current public execution pipeline produces attachments only for the test result passed to `OnTestFinish`:
 
 ```go
 func (r *MyReporter) OnTestFinish(result verity_reporting.TestResult) {
@@ -36,12 +36,12 @@ func (r *MyReporter) OnTestFinish(result verity_reporting.TestResult) {
 | Callback | What arrives |
 |---|---|
 | `OnTestFinish` | Test-level attachments — includes `take_notes` output |
-| `OnStepFinish` | Step-level attachments from custom sources |
+| `OnStepFinish` | Currently empty; activities cannot publish step attachments through the public API |
 
 **Processing rules:**
 - `Content` is raw bytes. For `"application/json"`, `string(att.Content)` gives readable output.
 - Use `ContentType` to decide how to render or persist.
-- Always guard with `len(result.Attachments()) > 0` — most results carry none.
+- Always guard with `len(result.Attachments()) > 0` — tests without non-empty notes, and all current step results, carry none.
 
 ## Example: rendering attachments in a Markdown reporter
 
