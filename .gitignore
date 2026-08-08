@@ -3,6 +3,9 @@ dist/
 # generated types
 .astro/
 
+# generated API reference (built from the selected library checkout)
+src/content/docs/en/api/
+
 # dependencies
 node_modules/
 
