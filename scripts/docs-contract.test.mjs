@@ -98,3 +98,62 @@ test("built redirect validation rejects a nonexistent target", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /target artifact/i);
 });
+
+test("built redirect validation ignores expected elements hidden in comments", () => {
+  const target = "/en/get_started/01_installation/";
+  const dist = redirectFixture();
+  const artifact = join(dist, "en/get_started/index.html");
+  writeFileSync(artifact, `<!doctype html>
+<!--
+<meta http-equiv="refresh" content="0;url=${target}">
+<link rel="canonical" href="https://verity-bdd.github.io${target}">
+<a href="${target}">Redirect</a>
+-->
+<meta http-equiv="refresh" content="0;url=https://evil.example/">
+<link rel="canonical" href="https://evil.example/">
+<a href="https://evil.example/">Redirect</a>`);
+
+  const result = run(redirectsScript, ["--dist", dist, "--only", "/en/get_started/"]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /refresh target/i);
+});
+
+for (const [name, inert] of [
+  ["script raw text", "script"],
+  ["template content", "template"],
+]) {
+  test(`built redirect validation ignores expected elements hidden in ${name}`, () => {
+    const target = "/en/get_started/01_installation/";
+    const dist = redirectFixture();
+    const artifact = join(dist, "en/get_started/index.html");
+    writeFileSync(artifact, `<!doctype html>
+<${inert}>
+<meta http-equiv="refresh" content="0;url=${target}">
+<link rel="canonical" href="https://verity-bdd.github.io${target}">
+<a href="${target}">Redirect</a>
+</${inert}>
+<meta http-equiv="refresh" content="0;url=https://evil.example/">
+<link rel="canonical" href="https://evil.example/">
+<a href="https://evil.example/">Redirect</a>`);
+
+    const result = run(redirectsScript, ["--dist", dist, "--only", "/en/get_started/"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /refresh target/i);
+  });
+}
+
+for (const [name, duplicate, error] of [
+  ["refresh", '<meta http-equiv="refresh" content="0;url=https://evil.example/">', /exactly one refresh/i],
+  ["canonical", '<link rel="canonical" href="https://evil.example/">', /exactly one canonical/i],
+  ["fallback", '<a href="https://evil.example/">Redirect</a>', /exactly one fallback/i],
+]) {
+  test(`built redirect validation rejects a duplicate conflicting ${name} element`, () => {
+    const dist = redirectFixture();
+    const artifact = join(dist, "en/get_started/index.html");
+    writeFileSync(artifact, `${readFileSync(artifact, "utf8")}\n${duplicate}`);
+
+    const result = run(redirectsScript, ["--dist", dist, "--only", "/en/get_started/"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, error);
+  });
+}
