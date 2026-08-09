@@ -31,7 +31,7 @@ jobs:
             const value = JSON.parse(fs.readFileSync("documented-library.json", "utf8"));
             if (!/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value.version)) throw new Error("invalid documented version");
             if (!/^[0-9a-f]{40}$/.test(value.sha)) throw new Error("invalid documented SHA");
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${value.version}\nsha=${value.sha}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "version=" + value.version + "\nsha=" + value.sha + "\n");
           '
 
       - name: Validate library dispatch payload
