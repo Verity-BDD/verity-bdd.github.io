@@ -15,7 +15,8 @@ Create a separate stateful ability instance for each actor. Passing the same ins
 ## `TakeNotes` ability
 The `TakeNotes` ability uses the same mechanism but is integrated with the framework. It lets an actor store and retrieve typed values during a test. Non-empty notes are serialised into one test-level `"notes"` attachment when the test shuts down.
 
-```go
+<!-- checked-go example=notes file=notes_test.go -->
+```go title="notes_test.go"
 package examples
 
 import (
@@ -42,6 +43,7 @@ func TestNotesExample(t *testing.T) {
     }
 }
 ```
+<!-- /checked-go -->
 
 ### How It Works
 

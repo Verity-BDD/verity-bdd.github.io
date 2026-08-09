@@ -31,5 +31,10 @@ cp -R "$repo_root/scripts/checked-examples/." "$tmp/"
   go mod edit -replace "github.com/verity-bdd/verity-bdd=$lib_dir"
   go mod tidy
   go test ./...
+
+  node "$repo_root/scripts/extract-checked-go.mjs" --output "$tmp/markdown"
+  go mod tidy
+  # The first API test is networked: compile selected Markdown examples without running them.
+  go test -run '^$' ./markdown/...
 )
 printf 'checked Go examples compile against Verity BDD %s (%s)\n' "$version" "$sha"

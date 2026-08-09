@@ -66,7 +66,8 @@ func TestDeployWorkflowUsesManifestRevisionAtomically(t *testing.T) {
 		"steps.documented-library.outputs.version",
 		"fetch-depth: 0",
 		"fetch-tags: true",
-		"Dispatch SHA $LIBRARY_SHA does not match documented SHA $DOCUMENTED_SHA",
+		"run: node scripts/validate-library-selection.mjs --manifest documented-library.json",
+		"run: node scripts/validate-library-selection.mjs --manifest documented-library.json --dispatch-sha \"$LIBRARY_SHA\"",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Errorf("workflow missing manifest contract %q", required)
@@ -105,6 +106,27 @@ func TestDeployWorkflowCompilesCheckedExamplesBeforeAstroBuild(t *testing.T) {
 	build := strings.Index(workflow, "npm run build")
 	if check < 0 || build < 0 || check > build {
 		t.Fatal("checked Go examples must run before the Astro build")
+	}
+}
+
+func TestDeployWorkflowRunsExecutableContractsFailClosed(t *testing.T) {
+	body, err := os.ReadFile("../../.github/workflows/deploy.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(body)
+	for _, required := range []string{
+		"run: npm run test:contracts",
+		"run: node scripts/verify-built-redirects.mjs --dist dist",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Errorf("workflow missing executable contract %q", required)
+		}
+	}
+	for _, bypass := range []string{"continue-on-error:", "|| true"} {
+		if strings.Contains(workflow, bypass) {
+			t.Errorf("workflow contract gates must fail closed; found %q", bypass)
+		}
 	}
 }
 
@@ -198,10 +220,8 @@ func TestSectionRootsAndCorrectExternalLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, artifact := range []string{"dist/en/get_started/index.html", "dist/en/core_concepts/index.html", "dist/en/guides/index.html", "dist/en/examples/index.html", "dist/en/api/index.html"} {
-		if !strings.Contains(string(workflowBody), artifact) {
-			t.Errorf("workflow does not check section artifact %s", artifact)
-		}
+	if !strings.Contains(string(workflowBody), "node scripts/verify-built-redirects.mjs --dist dist") {
+		t.Error("workflow does not semantically validate built section redirects")
 	}
 	screenplayBody, err := os.ReadFile("../../src/content/docs/en/core_concepts/1_screenplay.md")
 	if err != nil {

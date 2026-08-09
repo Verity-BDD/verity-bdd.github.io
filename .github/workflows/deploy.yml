@@ -23,32 +23,24 @@ jobs:
       - name: Checkout docs repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Test documentation contracts
+        run: npm run test:contracts
+
       - name: Read documented library manifest
         id: documented-library
-        run: |
-          node -e '
-            const fs = require("fs");
-            const value = JSON.parse(fs.readFileSync("documented-library.json", "utf8"));
-            if (!/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value.version)) throw new Error("invalid documented version");
-            if (!/^[0-9a-f]{40}$/.test(value.sha)) throw new Error("invalid documented SHA");
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, "version=" + value.version + "\nsha=" + value.sha + "\n");
-          '
+        run: node scripts/validate-library-selection.mjs --manifest documented-library.json
 
       - name: Validate library dispatch payload
         if: github.event_name == 'repository_dispatch'
         env:
           LIBRARY_SHA: ${{ github.event.client_payload.sha }}
-          DOCUMENTED_SHA: ${{ steps.documented-library.outputs.sha }}
-        run: |
-          if [[ ! "$LIBRARY_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Invalid or missing repository_dispatch lowercase library SHA: '$LIBRARY_SHA'" >&2
-            exit 1
-          fi
-          if [[ "$LIBRARY_SHA" != "$DOCUMENTED_SHA" ]]; then
-            echo "Dispatch SHA $LIBRARY_SHA does not match documented SHA $DOCUMENTED_SHA" >&2
-            exit 1
-          fi
-          echo "Repository dispatch matches the atomically documented library SHA: $LIBRARY_SHA"
+        run: node scripts/validate-library-selection.mjs --manifest documented-library.json --dispatch-sha "$LIBRARY_SHA"
 
       - name: Checkout lib repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -129,12 +121,6 @@ jobs:
           name: generated-api-markdown
           path: src/content/docs/en/api/
 
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-
       - name: Install and audit dependencies
         run: |
           npm ci
@@ -151,20 +137,7 @@ jobs:
         run: npm run build
 
       - name: Verify section landing routes
-        run: |
-          artifacts=(
-            dist/en/get_started/index.html
-            dist/en/core_concepts/index.html
-            dist/en/guides/index.html
-            dist/en/examples/index.html
-            dist/en/api/index.html
-          )
-          for artifact in "${artifacts[@]}"; do
-            test -f "$artifact" || {
-              echo "Missing built section route artifact: $artifact" >&2
-              exit 1
-            }
-          done
+        run: node scripts/verify-built-redirects.mjs --dist dist
 
       - name: Verify all API routes
         run: |

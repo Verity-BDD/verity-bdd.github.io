@@ -106,6 +106,7 @@ author.AttemptsTo(api.SendRequest(request))
 
 ## The complete test
 
+<!-- checked-go example=first-api-test file=post_api_test.go -->
 ```go title="post_api_test.go"
 package myapp_test
 
@@ -136,6 +137,7 @@ func TestCreatePost(t *testing.T) {
     )
 }
 ```
+<!-- /checked-go -->
 
 Run it with:
 
