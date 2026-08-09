@@ -191,7 +191,7 @@ After the test runs, `test-report.md` contains:
 
 ## Attachments
 
-Both result callbacks expose `result.Attachments()`, whose `Attachment` values carry a `Name string`, `ContentType string`, and `Content []byte`. In the current public pipeline, only `OnTestFinish` receives produced attachments: a non-empty `take_notes` notebook becomes one test-level `"notes"` JSON attachment. Step results currently have no attachments.
+Both result callbacks expose `result.Attachments()`, whose `Attachment` values carry a `Name string`, `ContentType string`, and `Content []byte`. A non-empty `take_notes` notebook becomes one test-level `"notes"` JSON attachment delivered to `OnTestFinish`. Standard `Actor.AttemptsTo` execution does not add step attachments, but callers that own a low-level `verity_reporting.ActivityTracker` can pass explicit attachments to `Finish`, which delivers them with `OnStepFinish`.
 
 The `MarkdownReporter` tutorial above counts attachments and points to the dedicated guide. The built-in `ConsoleReporter` prints attachment content inline; `AllureReporter` persists each as a separate file alongside the JSON result.
 

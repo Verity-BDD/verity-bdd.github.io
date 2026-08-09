@@ -31,6 +31,8 @@ func PublishPost(post Post) verity.Activity {
 }
 ```
 
+`TaskWhere` executes children sequentially and stops at the first child error. The enclosing task itself is fail-fast, regardless of the failed child's own failure mode. For example, an `ensure.That` attempted directly can report an error and let a later top-level activity run, but the same assertion inside this task returns an error to the task, prevents remaining children from running, and makes `AttemptsTo` stop at the task boundary. Reporters receive the enclosing task activity and its nested child activities, preserving both business-level and detailed reporting.
+
 ```go title="post_api_test.go"
 func TestPublishPost(t *testing.T) {
     test := verity.NewVerityTest(t, verity.Scene{})

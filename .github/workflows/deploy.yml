@@ -23,32 +23,56 @@ jobs:
       - name: Checkout docs repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Read documented library manifest
+        id: documented-library
+        run: |
+          node -e '
+            const fs = require("fs");
+            const value = JSON.parse(fs.readFileSync("documented-library.json", "utf8"));
+            if (!/^v[0-9]+\.[0-9]+\.[0-9]+$/.test(value.version)) throw new Error("invalid documented version");
+            if (!/^[0-9a-f]{40}$/.test(value.sha)) throw new Error("invalid documented SHA");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${value.version}\nsha=${value.sha}\n`);
+          '
+
       - name: Validate library dispatch payload
         if: github.event_name == 'repository_dispatch'
         env:
           LIBRARY_SHA: ${{ github.event.client_payload.sha }}
+          DOCUMENTED_SHA: ${{ steps.documented-library.outputs.sha }}
         run: |
           if [[ ! "$LIBRARY_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "Invalid or missing repository_dispatch lowercase library SHA: '$LIBRARY_SHA'" >&2
             exit 1
           fi
-          echo "Repository dispatch requested library SHA: $LIBRARY_SHA"
+          if [[ "$LIBRARY_SHA" != "$DOCUMENTED_SHA" ]]; then
+            echo "Dispatch SHA $LIBRARY_SHA does not match documented SHA $DOCUMENTED_SHA" >&2
+            exit 1
+          fi
+          echo "Repository dispatch matches the atomically documented library SHA: $LIBRARY_SHA"
 
       - name: Checkout lib repo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: verity-bdd/verity-bdd
           path: lib-source
-          ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.sha || 'main' }}
+          ref: ${{ steps.documented-library.outputs.sha }}
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Record selected library SHA
         id: library
         env:
-          REQUESTED_SHA: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.sha || '' }}
+          REQUESTED_SHA: ${{ steps.documented-library.outputs.sha }}
+          REQUESTED_VERSION: ${{ steps.documented-library.outputs.version }}
         run: |
           selected_sha=$(git -C lib-source rev-parse HEAD)
-          if [[ -n "$REQUESTED_SHA" && "$selected_sha" != "$REQUESTED_SHA" ]]; then
+          if [[ "$selected_sha" != "$REQUESTED_SHA" ]]; then
             echo "Checked out $selected_sha instead of requested $REQUESTED_SHA" >&2
+            exit 1
+          fi
+          tagged_sha=$(git -C lib-source rev-list -n 1 "$REQUESTED_VERSION")
+          if [[ "$tagged_sha" != "$REQUESTED_SHA" ]]; then
+            echo "$REQUESTED_VERSION resolves to $tagged_sha instead of $REQUESTED_SHA" >&2
             exit 1
           fi
           if [[ -n "$(git -C lib-source status --porcelain --untracked-files=normal)" ]]; then
@@ -116,12 +140,31 @@ jobs:
           npm ci
           npm audit --audit-level=low
 
+      - name: Compile checked documentation examples
+        run: scripts/check-docs-examples.sh "$GITHUB_WORKSPACE/lib-source"
+
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Build Astro site
         run: npm run build
+
+      - name: Verify section landing routes
+        run: |
+          artifacts=(
+            dist/en/get_started/index.html
+            dist/en/core_concepts/index.html
+            dist/en/guides/index.html
+            dist/en/examples/index.html
+            dist/en/api/index.html
+          )
+          for artifact in "${artifacts[@]}"; do
+            test -f "$artifact" || {
+              echo "Missing built section route artifact: $artifact" >&2
+              exit 1
+            }
+          done
 
       - name: Verify all API routes
         run: |

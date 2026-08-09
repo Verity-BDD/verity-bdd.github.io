@@ -124,6 +124,12 @@ func TestActorIdentity(t *testing.T) {
 }
 ```
 
+`test.Actors()` returns a fresh, non-nil snapshot on every call. It contains the original actor identities, sorted by actor name in ascending case-sensitive lexical order. Therefore `"Alice"` sorts before `"alice"`, and modifying the returned slice does not change the registry. Repeating `ActorCalled` with a registered name reuses that actor, and the scene's default-ability factories run only when a new name is registered.
+
+All `VerityTest` registry methods are safe for concurrent use, so goroutines may register, retrieve, and snapshot actors concurrently. This guarantee does not make caller-owned ability implementations safe automatically; synchronize shared mutable abilities yourself.
+
+`Shutdown` is idempotent and terminal. Cleanup calls it automatically, but after an explicit or automatic shutdown, `Actors` returns a non-nil empty snapshot and `ActorCalled` panics with `"verity: ActorCalled called after Shutdown"`. A checked executable example covering identity, sorting, snapshot isolation, factory invocation, concurrency, and shutdown lives in [`scripts/checked-examples/actors_test.go`](https://github.com/Verity-BDD/verity-bdd.github.io/blob/main/scripts/checked-examples/actors_test.go).
+
 To avoid typos and repetition when instantiating and retrieving actors in your test scenarios,
 you might want to consider using constants to store actor names:
 
@@ -316,6 +322,8 @@ func GetProducts() verity.Activity {
     )
 }
 ```
+
+The callback passed to `verity.Do` must be non-nil. Unlike `QuestionAbout`, `Do` accepts a nil callback at construction and panics only when the interaction executes, when `PerformAs` invokes it.
 
 See the public [`Actor`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Actor) and [`Interaction`](https://pkg.go.dev/github.com/verity-bdd/verity-bdd#Interaction) contracts.
 
@@ -592,7 +600,7 @@ This list is a chronological order of significant events, implementations, and w
 * 2017: [Testing modern webapps. At scale.](https://www.slideshare.net/janmolak/testing-modern-webapps-at-scale) - Jan Molak introduces the idea of "Blended Testing"
 * 2019: [ScreenPy](https://pypi.org/project/screenpy/) - Python implementation of the Screenplay Pattern by [Perry Goy](https://www.linkedin.com/in/perry-goy/)
 * 2020: [Boa Constrictor](https://automationpanda.com/2020/10/16/introducing-boa-constrictor-the-net-screenplay-pattern/) - a .NET implementation of Screenplay by [Andrew Knight](https://automationpanda.com/)
-* 2020: [Understanding Screenplay](https://cucumber.io/blog/bdd/understanding-screenplay-(part-1)/) - blog series by [Matt Wynne](https://blog.mattwynne.net/)
+* 2020: [Understanding Screenplay](https://cucumber.io/blog/bdd/understanding-screenplay-part-1/) - blog series by [Matt Wynne](https://mattwynne.net/)
 * 2021: [Cucumber Screenplay](https://github.com/cucumber/screenplay.js) and [Sub-second TDD](https://github.com/subsecondtdd/todo-subsecond) - implementation by [Aslak Hellesøy](https://www.aslakhellesoy.com/)
 * 2021: [BDD in Action, 2nd Edition](https://www.manning.com/books/bdd-in-action-second-edition) by John Ferguson Smart and Jan Molak includes several chapters and many examples of using the Screenplay Pattern in Java and TypeScript
 :::

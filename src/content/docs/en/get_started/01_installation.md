@@ -5,6 +5,8 @@ sidebar:
   order: 1
 ---
 
+This site documents **Verity BDD v0.22.3**, built from library commit [`5133ec7688f9f12d9ee581fe4311d1524dd2294f`](https://github.com/verity-bdd/verity-bdd/commit/5133ec7688f9f12d9ee581fe4311d1524dd2294f). The repository's `documented-library.json` manifest is the authoritative version declaration used by documentation checks and deployment.
+
 :::note[v0.x.x notice]
   This project is still at version 0.x.x. No backwards compatibility is guaranteed for any changes. The plan is to go v1.x.x in Summer 2026.
 :::
@@ -48,7 +50,7 @@ my-project/
 In your Go module, run:
 
 ```bash
-go get github.com/verity-bdd/verity-bdd
+go get github.com/verity-bdd/verity-bdd@v0.22.3
 ```
 
 ## Package overview

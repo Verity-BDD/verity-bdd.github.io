@@ -171,8 +171,9 @@ func (w *WriteFileActivity) FailureMode() verity.FailureMode {
 }
 ```
 
-The critical line is `actor.AbilityTo(&fileSystemAbility{})`:
-**Verity BDD** matches the ability by its concrete type, so pass a zero-value pointer to your private struct.
+The critical line is `actor.AbilityTo(&fileSystemAbility{})`. Ability lookup walks abilities in insertion order and returns the first assignable match. Matching supports concrete assignability, interface implementation, and corresponding pointer and value forms; pass a value representing the desired type, such as the zero-value pointer above.
+
+`WhoCan` appends abilities and does not replace or deduplicate an existing type. This makes overlapping interface matches order-dependent. Verity stores the references it is given, so the caller or default-ability factory owns isolation: construct one mutable ability per actor unless sharing is intentional.
 
 The simpler alternative is `verity.AbilityOf[FileSystemAbility](actor)`, used below. Request the interface itself, not `*FileSystemAbility` (a pointer to an interface).
 

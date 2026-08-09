@@ -90,6 +90,8 @@ Since `ensure.That` is just an activity, it can be composed into reusable tasks.
 This is what makes Verity BDD assertions especially powerful — the same assertion logic
 can be reused across different test scenarios.
 
+A `TaskWhere` boundary changes error handling: it stops on any child error, even when that child would be non-critical if attempted directly, and the task itself is fail-fast. Remaining children do not run. Reporting remains nested: reporters see the enclosing task plus each child activity that started, so the business-level task and its detailed steps both appear.
+
 Consider a task that verifies a URL returns 200 OK:
 
 ```go title="tasks.go"
@@ -288,6 +290,8 @@ func AssertFirstProductIsApples(apisitt verity.Actor) {
 }
 ```
 
+The callback is required. `verity.QuestionAbout` checks it immediately and panics at construction time when it is nil; a non-nil callback runs later whenever the question is answered.
+
 ### Delayed and polling assertions
 
 `ensure.That(question, expectation).After(duration)` waits once, then answers the question and evaluates the expectation once. It is a deliberate delay, not a polling mechanism:
@@ -300,7 +304,9 @@ actor.AttemptsTo(
 
 The delayed activity is fail-fast. Cancellation of the actor's context interrupts the delay.
 
-For polling, use `wait.Until`. It checks immediately, then repeats until the expectation passes, the context is cancelled, or the timeout expires. Defaults are a 5-second timeout and a 500-millisecond interval:
+For polling, use `wait.Until`. It is deliberately poll-first: it answers the question and evaluates the expectation immediately, then repeats until the expectation passes, the context is cancelled, or the timeout expires. This first poll also occurs with a pre-cancelled context. Consequently the wait can still succeed when that first poll succeeds and the question/expectation ignores cancellation; cancellation is checked only after a failed poll. Defaults are a 5-second timeout and a 500-millisecond interval.
+
+`CheckingEvery` requires a duration greater than zero. Zero or negative values are passed to `time.NewTicker`, which panics when the wait executes; Verity BDD does not pre-validate or change that standard-library contract.
 
 ```go
 import "github.com/verity-bdd/verity-bdd/verity_abilities/wait"
