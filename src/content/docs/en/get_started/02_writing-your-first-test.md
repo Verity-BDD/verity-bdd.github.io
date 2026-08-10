@@ -72,12 +72,12 @@ Built-in API questions:
 ```go
 api.LastResponseStatus{}                // HTTP status code (int)
 api.LastResponseBody{}                  // Response body (string)
-api.NewResponseHeader("content-type")   // Response header value (string)
-api.NewJSONPath("data.user.name")       // JSONPath result (any)
+api.LastResponseHeader("content-type")          // Response header value (string)
+api.LastResponseBodyAtJSONPath("data.user.name") // JSONPath result (any)
 api.LastResponseBodyAsJSON[T]()          // Deserialise body into T
 ```
 
-`NewJSONPath` uses dot-separated object keys and numeric array indexes. A `*` array segment returns `[]any`; JSON numbers decode with the standard `encoding/json` representation (normally `float64`). The prebuilt `api.LastResponseStatusQ` and `api.LastResponseBodyQ` are equivalent to the empty struct questions above.
+`LastResponseBodyAtJSONPath` uses dot-separated object keys and numeric array indexes. A `*` array segment returns `[]any`; JSON numbers decode with the standard `encoding/json` representation (normally `float64`). The prebuilt `api.LastResponseStatusQ` and `api.LastResponseBodyQ` are equivalent to the empty struct questions above.
 
 `api.ResponseTime{}` and the equivalent `api.ResponseTimeQ` currently always answer `0`; request timing is not implemented yet, so do not use either for performance assertions.
 
@@ -89,9 +89,12 @@ Use `api.Using(client)` when the actor needs a configured `*http.Client` (for ex
 client := &http.Client{Timeout: 10 * time.Second}
 author := test.ActorCalled("Author").WhoCan(api.Using(client))
 
-request, err := api.NewRequestBuilder(http.MethodGet, "https://api.example.org/posts").
-    WithHeader("Accept", "application/json").
-    Build()
+builder := api.RequestFor(http.MethodPost, "https://api.example.org/posts").
+    WithHeader("Accept", "application/json")
+if err := builder.WithJSONBody(map[string]string{"title": "My post"}); err != nil {
+    t.Fatal(err)
+}
+request, err := builder.Build()
 if err != nil {
     t.Fatal(err)
 }
@@ -99,10 +102,11 @@ if err != nil {
 author.AttemptsTo(api.SendRequest(request))
 ```
 
-`NewRequestBuilder` also supports `WithHeaders`, `WithBody(io.Reader)`, `With(data)`, and `WithJSONBody(data)`. `WithJSONBody` returns an error; `With` is fluent and attempts JSON encoding for other values. You can also build a standard `*http.Request` directly and pass it to `SendRequest`.
+`RequestFor` also supports `WithHeaders`, `WithBody(io.Reader)`, `With(data)`, and `WithJSONBody(data)`. Unlike the fluent helpers, `WithJSONBody` returns an `error`: handle that error first, then call `Build` as the separate second step shown above. `With` is fluent and attempts JSON encoding for other values. You can also build a standard `*http.Request` directly and pass it to `SendRequest`.
 
 ## The complete test
 
+<!-- checked-go example=first-api-test file=post_api_test.go -->
 ```go title="post_api_test.go"
 package myapp_test
 
@@ -133,6 +137,7 @@ func TestCreatePost(t *testing.T) {
     )
 }
 ```
+<!-- /checked-go -->
 
 Run it with:
 

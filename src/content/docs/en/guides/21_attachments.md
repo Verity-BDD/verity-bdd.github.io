@@ -15,11 +15,25 @@ type Attachment struct {
 }
 ```
 
-The only built-in source today is the [`take_notes` ability](/en/guides/11_notes/): when a test finishes, Verity BDD serialises all actor notes to JSON and delivers them as a single `"notes"` attachment in `OnTestFinish`. Custom attachment sources are not yet part of the public API.
+The built-in high-level source is the [`take_notes` ability](/en/guides/11_notes/): when a test finishes, Verity BDD serialises all actor notes to JSON and delivers them as a single `"notes"` attachment in `OnTestFinish`. The standard actor pipeline has a narrower limitation: ordinary `Actor.AttemptsTo` activities call their tracker as `Finish(err)` and therefore cannot publish arbitrary step attachments.
+
+The low-level reporting API is public. `verity_reporting.NewActivityTracker` and `NewActivityTrackerWithActor` return a tracker whose `Finish(err, attachments...)` accepts arbitrary `verity_reporting.Attachment` values. Use this API only when you own the execution/tracking boundary; do not wrap an activity already run through `Actor.AttemptsTo`, or you will report it twice.
+
+```go
+func reportCustomStep(reporter verity_reporting.Reporter, err error) {
+    tracker := verity_reporting.NewActivityTracker(reporter, "exports diagnostics")
+    tracker.Start()
+    tracker.Finish(err, verity_reporting.Attachment{
+        Name:        "diagnostics.json",
+        ContentType: "application/json",
+        Content:     []byte(`{"status":"captured"}`),
+    })
+}
+```
 
 ## Receiving attachments in a reporter
 
-Reporters can inspect `result.Attachments()` in either result callback, but the current public execution pipeline produces attachments only for the test result passed to `OnTestFinish`:
+Reporters can inspect `result.Attachments()` in either result callback. The high-level `take_notes` path adds its attachment to the test result passed to `OnTestFinish`; a low-level activity tracker can instead add explicit attachments to the step result passed to `OnStepFinish`:
 
 ```go
 func (r *MyReporter) OnTestFinish(result verity_reporting.TestResult) {
@@ -36,12 +50,12 @@ func (r *MyReporter) OnTestFinish(result verity_reporting.TestResult) {
 | Callback | What arrives |
 |---|---|
 | `OnTestFinish` | Test-level attachments — includes `take_notes` output |
-| `OnStepFinish` | Currently empty; activities cannot publish step attachments through the public API |
+| `OnStepFinish` | Empty for standard `Actor.AttemptsTo`; low-level activity trackers can supply attachments explicitly |
 
 **Processing rules:**
 - `Content` is raw bytes. For `"application/json"`, `string(att.Content)` gives readable output.
 - Use `ContentType` to decide how to render or persist.
-- Always guard with `len(result.Attachments()) > 0` — tests without non-empty notes, and all current step results, carry none.
+- Always guard with `len(result.Attachments()) > 0` — tests without non-empty notes and standard `Actor.AttemptsTo` step results carry none, while low-level trackers may supply explicit step attachments.
 
 ## Example: rendering attachments in a Markdown reporter
 

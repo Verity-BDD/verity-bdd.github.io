@@ -8,6 +8,11 @@ export default defineConfig({
   base: "/",
   redirects: {
     "/": "/en/",
+    "/en/get_started/": "/en/get_started/01_installation/",
+    "/en/core_concepts/": "/en/core_concepts/1_screenplay/",
+    "/en/guides/": "/en/guides/11_notes/",
+    "/en/examples/": "/en/examples/abilities/",
+    "/en/api/": "/en/api/verity-bdd/",
   },
   integrations: [
     starlight({

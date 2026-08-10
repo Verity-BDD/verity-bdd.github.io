@@ -6,16 +6,17 @@ sidebar:
 ---
 
 There are 2 basic ways to share some data between steps:
-1. Each actor has its own ability instances, so an ability can carry state between that actor's steps.
+1. An ability can carry state between an actor's steps. The caller or a default-ability factory owns instance isolation; Verity stores the supplied reference unchanged.
 2. The `take_notes` package provides a built-in ability for storing values between steps.
 
 ## Ability state
-Create a separate stateful ability instance for each actor. Activities and questions can then update and read that instance between steps without sharing it with other actors.
+Create a separate stateful ability instance for each actor. Passing the same instance to multiple actors intentionally shares its state, so the ability itself must then provide any required concurrency safety. Activities and questions can update and read the selected instance between steps.
 
 ## `TakeNotes` ability
 The `TakeNotes` ability uses the same mechanism but is integrated with the framework. It lets an actor store and retrieve typed values during a test. Non-empty notes are serialised into one test-level `"notes"` attachment when the test shuts down.
 
-```go
+<!-- checked-go example=notes file=notes_test.go -->
+```go title="notes_test.go"
 package examples
 
 import (
@@ -42,6 +43,7 @@ func TestNotesExample(t *testing.T) {
     }
 }
 ```
+<!-- /checked-go -->
 
 ### How It Works
 
